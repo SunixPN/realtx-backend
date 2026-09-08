@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { LessThan, MoreThan, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -60,8 +60,7 @@ export class AuthService {
       }),
     );
 
-    // Отправляем верификационное письмо в фоне — не блокируем регистрацию,
-    // если Resend временно не отвечает, пользователь всё равно зарегистрируется
+    // Отправляем верификационное письмо в фоне — не блокируем регистрацию
     this.emailVerificationService.sendVerificationEmail(user).catch((err) => {
       console.error('Не удалось отправить верификационное письмо:', err);
     });
@@ -90,7 +89,7 @@ export class AuthService {
     return this.issueTokens(user, ctx);
   }
 
-  // Обмен старого refresh на новую пару (rotation)
+  // Rotation: удаляем старый токен, выдаём новую пару
   async refresh(oldRefreshToken: string, ctx: SessionContext = {}): Promise<AuthResult> {
     if (!oldRefreshToken) {
       throw new UnauthorizedException('Refresh token отсутствует');
@@ -99,72 +98,66 @@ export class AuthService {
     const tokenHash = this.hashToken(oldRefreshToken);
 
     const record = await this.refreshRepo.findOne({
-      where: { tokenHash, revokedAt: IsNull() },
+      where: { tokenHash },
       relations: { user: true },
     });
 
     if (!record) {
-      // Токен уже отозван (или подделан) — возможно кто-то украл.
-      // На всякий случай инвалидируем все токены этого юзера если сможем понять кого именно
       throw new UnauthorizedException('Недействительный refresh token');
     }
 
     if (record.expiresAt.getTime() < Date.now()) {
+      // Истёкший токен удаляем — cron его всё равно бы убрал
+      await this.refreshRepo.delete(record.id);
       throw new UnauthorizedException('Refresh token истёк');
     }
 
-    // Rotation: старый токен помечаем отозванным
-    record.revokedAt = new Date();
-    await this.refreshRepo.save(record);
+    // Rotation: удаляем старый токен и сразу выдаём новый
+    await this.refreshRepo.delete(record.id);
 
     return this.issueTokens(record.user, ctx);
   }
 
   async logout(refreshToken: string | undefined): Promise<void> {
-    if (!refreshToken) return; // молча — logout идемпотентен
+    if (!refreshToken) return;
 
     const tokenHash = this.hashToken(refreshToken);
-    await this.refreshRepo.update(
-      { tokenHash, revokedAt: IsNull() },
-      { revokedAt: new Date() },
-    );
+    await this.refreshRepo.delete({ tokenHash });
   }
 
-  // Список активных сессий юзера
+  // Список активных (не истёкших) сессий юзера
   async listSessions(userId: string) {
     const sessions = await this.refreshRepo.find({
-      where: { userId, revokedAt: IsNull() },
+      where: { userId, expiresAt: MoreThan(new Date()) },
       order: { createdAt: 'DESC' },
     });
 
-    // Не отдаём tokenHash наружу
     return sessions.map(({ tokenHash: _, ...s }) => s);
   }
 
   // Отозвать одну конкретную сессию
   async revokeSession(userId: string, sessionId: string): Promise<void> {
-    const session = await this.refreshRepo.findOne({
-      where: { id: sessionId, userId },
-    });
+    const result = await this.refreshRepo.delete({ id: sessionId, userId });
 
-    if (!session) {
+    if (result.affected === 0) {
       throw new NotFoundException('Сессия не найдена');
     }
-    if (session.revokedAt) return; // уже отозвана — ок
-
-    session.revokedAt = new Date();
-    await this.refreshRepo.save(session);
   }
 
   // Выход со всех устройств
   async logoutAll(userId: string): Promise<void> {
-    await this.refreshRepo.update(
-      { userId, revokedAt: IsNull() },
-      { revokedAt: new Date() },
-    );
+    await this.refreshRepo.delete({ userId });
   }
 
-  // Удаление аккаунта — вместе с ним каскадом уйдут все refresh_tokens
+  // Удалить истёкшие токены — вызывается из TokenCleanupService
+  async deleteExpiredTokens(): Promise<number> {
+    const result = await this.refreshRepo.delete({
+      expiresAt: LessThan(new Date()),
+    });
+    return result.affected ?? 0;
+  }
+
+  // Удаление аккаунта — каскадом уйдут все refresh_tokens
   async deleteAccount(userId: string): Promise<void> {
     const result = await this.userRepo.delete(userId);
     if (result.affected === 0) {

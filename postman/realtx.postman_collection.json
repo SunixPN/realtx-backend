@@ -20,6 +20,11 @@
       "key": "sessionId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "resetToken",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -244,6 +249,63 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "account"]
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Password reset",
+      "description": "Флоу сброса пароля. Все три эндпоинта публичные — токен доступа не нужен.\n\nСценарий:\n1. Request reset → письмо с токеном на почту\n2. Verify token → проверяем, что ссылка ещё жива (без удаления)\n3. Confirm reset → новый пароль, токен удаляется, все сессии инвалидируются",
+      "item": [
+        {
+          "name": "Request reset",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/password-reset/request",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "password-reset", "request"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@mail.ru\"\n}"
+            },
+            "description": "202 Accepted — всегда, даже если email не найден (anti-enumeration). Токен из письма вставь в переменную resetToken вручную."
+          }
+        },
+        {
+          "name": "Verify token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/password-reset/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "password-reset", "verify"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\"\n}"
+            },
+            "description": "Фронт вызывает при монтировании /reset/new. 200 { valid: true } — можно показывать форму. 404/400 — показываем экран «ссылка протухла». Токен НЕ удаляется."
+          }
+        },
+        {
+          "name": "Confirm reset",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/password-reset/confirm",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "password-reset", "confirm"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"password\": \"NewPass1234\"\n}"
+            },
+            "description": "Устанавливает новый пароль. Токен удаляется из БД. Все активные refresh-сессии инвалидируются. После — войдите через Login с новым паролем."
           }
         }
       ]

@@ -1,23 +1,9 @@
-import {
-  IsEmail,
-  IsOptional,
-  IsString,
-  Length,
-  Matches,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
-import { Transform } from 'class-transformer';
+import { IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
 
-export class RegisterDto {
-  @IsOptional()
+export class ConfirmPasswordResetDto {
   @IsString()
-  name?: string;
-
-  @IsEmail({}, { message: 'Некорректный email' })
-  @MaxLength(255, { message: 'Email слишком длинный' })
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
-  email: string;
+  @Length(32, 128)
+  token: string;
 
   @IsString()
   @MinLength(8, { message: 'Пароль должен быть не короче 8 символов' })

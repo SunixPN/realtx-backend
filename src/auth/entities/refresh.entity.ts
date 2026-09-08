@@ -15,14 +15,12 @@ export class RefreshTokenEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // Foreign key
   @Index()
   @Column({ type: 'uuid' })
   userId: string;
 
-  // Связь ManyToOne — со стороны "многие"
   @ManyToOne(() => UserEntity, (user) => user.refreshTokens, {
-    onDelete: 'CASCADE', // юзера удалили → все его токены тоже
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'userId' })
   user: Relation<UserEntity>;
@@ -41,7 +39,4 @@ export class RefreshTokenEntity {
 
   @CreateDateColumn()
   createdAt: Date;
-
-  @Column({ type: 'timestamptz', nullable: true })
-  revokedAt: Date | null;
 }

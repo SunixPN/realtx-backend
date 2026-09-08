@@ -3,9 +3,13 @@ import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service.js';
 import { EmailVerificationService } from './email-verification.service.js';
+import { PasswordResetService } from './password-reset.service.js';
 import { RegisterDto } from './dto/register-dto.js';
 import { LoginDto } from './dto/login-dto.js';
 import { VerifyEmailDto } from './dto/verify-email-dto.js';
+import { RequestPasswordResetDto } from './dto/request-password-reset-dto.js';
+import { VerifyResetTokenDto } from './dto/verify-reset-token-dto.js';
+import { ConfirmPasswordResetDto } from './dto/confirm-password-reset-dto.js';
 import { Public } from './decorators/public.decorator.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import { UserEntity } from '../user/entities/user.entity.js';
@@ -15,6 +19,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly emailVerificationService: EmailVerificationService,
+    private readonly passwordResetService: PasswordResetService,
     private readonly config: ConfigService,
   ) {}
 
@@ -154,6 +159,35 @@ export class AuthController {
   ) {
     await this.authService.deleteAccount(user.id);
     res.clearCookie('refresh', { path: '/auth' });
+  }
+
+  // --- Сброс пароля ---
+
+  // Шаг 1: запрос ссылки. Всегда 202 — не палим наличие аккаунта.
+  @Public()
+  @Post('password-reset/request')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async requestPasswordReset(@Body() dto: RequestPasswordResetDto) {
+    await this.passwordResetService.requestReset(dto.email);
+    return { message: 'Если такой email существует, письмо отправлено' };
+  }
+
+  // Шаг 2: фронт проверяет токен при монтировании /reset/new — показать форму или «ссылка протухла».
+  @Public()
+  @Post('password-reset/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyResetToken(@Body() dto: VerifyResetTokenDto) {
+    await this.passwordResetService.verifyToken(dto.token);
+    return { valid: true };
+  }
+
+  // Шаг 3: установка нового пароля. Токен удаляется, все сессии инвалидируются.
+  @Public()
+  @Post('password-reset/confirm')
+  @HttpCode(HttpStatus.OK)
+  async confirmPasswordReset(@Body() dto: ConfirmPasswordResetDto) {
+    await this.passwordResetService.confirmReset(dto.token, dto.password);
+    return { message: 'Пароль обновлён' };
   }
 
   private setRefreshCookie(res: Response, token: string): void {

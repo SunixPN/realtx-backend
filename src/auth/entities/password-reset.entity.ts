@@ -10,8 +10,8 @@ import {
 } from 'typeorm';
 import { UserEntity } from '../../user/entities/user.entity.js';
 
-@Entity('email_verification_tokens')
-export class EmailVerificationTokenEntity {
+@Entity('password_reset_tokens')
+export class PasswordResetTokenEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

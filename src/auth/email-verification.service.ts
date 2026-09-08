@@ -7,13 +7,13 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import * as crypto from 'node:crypto';
 import { UserEntity } from '../user/entities/user.entity.js';
 import { MailService } from '../mail/mail.service.js';
 import { EmailVerificationTokenEntity } from './entities/email-verification.entity.js';
 
-const TOKEN_TTL_HOURS = 24;
+const TOKEN_TTL_MINUTES = 15;
 
 @Injectable()
 export class EmailVerificationService {
@@ -30,7 +30,7 @@ export class EmailVerificationService {
     private readonly config: ConfigService,
   ) {}
 
-  // Отправить письмо с подтверждением. Инвалидирует прошлые токены юзера.
+  // Отправить письмо с подтверждением. Удаляет предыдущие токены юзера.
   async sendVerificationEmail(user: UserEntity): Promise<void> {
     if (!user.email) {
       throw new BadRequestException('У пользователя не указан email');
@@ -39,11 +39,8 @@ export class EmailVerificationService {
       throw new ConflictException('Email уже подтверждён');
     }
 
-    // Отзываем все прошлые неиспользованные токены — активной может быть только последняя ссылка
-    await this.tokenRepo.update(
-      { userId: user.id, usedAt: IsNull() },
-      { usedAt: new Date() },
-    );
+    // Удаляем все прошлые токены — активной может быть только последняя ссылка
+    await this.tokenRepo.delete({ userId: user.id });
 
     const rawToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = this.hashToken(rawToken);
@@ -52,7 +49,7 @@ export class EmailVerificationService {
       this.tokenRepo.create({
         userId: user.id,
         tokenHash,
-        expiresAt: new Date(Date.now() + TOKEN_TTL_HOURS * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + TOKEN_TTL_MINUTES * 60 * 1000),
       }),
     );
 
@@ -68,7 +65,7 @@ export class EmailVerificationService {
     this.logger.log(`Верификационное письмо отправлено юзеру ${user.id}`);
   }
 
-  // Подтвердить email по токену из ссылки
+  // Подтвердить email по токену из ссылки. Удаляет токен после успешной проверки.
   async verifyEmail(rawToken: string): Promise<void> {
     if (!rawToken) {
       throw new BadRequestException('Токен не передан');
@@ -82,19 +79,14 @@ export class EmailVerificationService {
     });
 
     if (!record) {
-      throw new NotFoundException('Ссылка недействительна');
-    }
-    if (record.usedAt) {
-      throw new BadRequestException('Ссылка уже использована');
+      throw new NotFoundException('Ссылка недействительна или уже использована');
     }
     if (record.expiresAt.getTime() < Date.now()) {
       throw new BadRequestException('Срок действия ссылки истёк');
     }
 
-    // Помечаем токен использованным + юзера как подтверждённого
-    record.usedAt = new Date();
-    await this.tokenRepo.save(record);
-
+    // Удаляем токен и подтверждаем email — в обратном порядке нет смысла держать токен
+    await this.tokenRepo.delete(record.id);
     await this.userRepo.update(record.userId, { emailVerified: true });
   }
 
@@ -117,7 +109,7 @@ export class EmailVerificationService {
           Или скопируйте ссылку в браузер:<br>
           <a href="${link}" style="color: #666;">${link}</a>
         </p>
-        <p style="color: #666; font-size: 14px;">Ссылка действительна ${TOKEN_TTL_HOURS} часов.</p>
+        <p style="color: #666; font-size: 14px;">Ссылка действительна ${TOKEN_TTL_MINUTES} минут.</p>
         <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;">
         <p style="color: #999; font-size: 13px;">
           Если вы не регистрировались в RealtX — просто проигнорируйте это письмо.

@@ -12,11 +12,14 @@ export class EstateEntity {
     id: number;
 
     // --- Источник ---
-    @Column({ type: 'int', unique: true })
-    sourceId: number;
+    @Column({ type: 'varchar', unique: true })
+    sourceUuid: string; // UUID объявления на realt.by ("00137590-8e4c-11f1-...")
 
-    @Column({ type: 'varchar' })
-    sourceUrl: string;
+    @Column({ type: 'varchar', nullable: true })
+    sourceUnid: string | null; // Короткий код ("SITEJ4VHTS7F")
+
+    @Column({ type: 'varchar', nullable: true })
+    sourceUrl: string | null; // Ссылка на объявление
 
     // --- Контент ---
     @Column({ type: 'varchar', nullable: true })
@@ -25,27 +28,21 @@ export class EstateEntity {
     @Column({ type: 'text', nullable: true })
     description: string | null;
 
-    // --- Цены ---
+    // --- Цены (оригинальные из источника) ---
     @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
-    priceUsd: number | null;
+    price: number | null; // Цена в оригинальной валюте
 
-    @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
-    priceByn: number | null;
-
-    @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
-    priceEur: number | null;
+    @Column({ type: 'int', nullable: true })
+    priceCurrency: number | null; // 933=BYN, 840=USD, 978=EUR
 
     @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-    pricePerM2Usd: number | null;
+    pricePerM2: number | null;
 
-    @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-    pricePerM2Byn: number | null;
+    @Column({ type: 'int', nullable: true })
+    priceChangeDirection: number | null; // 0=нет, 1=вверх, -1=вниз
 
-    @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-    pricePerM2Eur: number | null;
-
-    @Column({ type: 'varchar', nullable: true })
-    priceCurrencyOriginal: string | null;
+    @Column({ type: 'timestamptz', nullable: true })
+    priceChangeDate: Date | null;
 
     // --- Характеристики ---
     @Column({ type: 'int', nullable: true })
@@ -60,8 +57,8 @@ export class EstateEntity {
     @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
     areaKitchen: number | null;
 
-    @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
-    areaBalcony: number | null;
+    @Column({ type: 'int', nullable: true })
+    balconyType: number | null; // числовой код из API
 
     @Column({ type: 'int', nullable: true })
     storey: number | null;
@@ -72,24 +69,21 @@ export class EstateEntity {
     @Column({ type: 'int', nullable: true })
     buildingYear: number | null;
 
-    @Column({ type: 'varchar', nullable: true })
-    houseType: string | null;
+    @Column({ type: 'int', nullable: true })
+    wallMaterial: number | null; // числовой код (панель/кирпич/монолит)
 
-    @Column({ type: 'varchar', nullable: true })
-    repairState: string | null;
+    @Column({ type: 'int', nullable: true })
+    repairState: number | null; // числовой код (без ремонта/евро/и тд)
 
     // --- Локация ---
     @Column({ type: 'varchar', nullable: true })
     address: string | null;
 
     @Column({ type: 'varchar', nullable: true })
-    town: string | null;
+    townName: string | null;
 
     @Column({ type: 'varchar', nullable: true })
-    district: string | null;
-
-    @Column({ type: 'varchar', nullable: true })
-    subDistrict: string | null;
+    districtName: string | null;
 
     @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
     lat: number | null;
@@ -97,55 +91,44 @@ export class EstateEntity {
     @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
     lng: number | null;
 
-    // Координаты строкой как пришли из источника
-    @Column({ type: 'varchar', nullable: true })
-    coordsRaw: string | null;
-
     // --- Метро ---
     @Column({ type: 'varchar', nullable: true })
     metroStation: string | null;
 
-    @Column({ type: 'varchar', nullable: true })
-    metroLine: string | null;
+    @Column({ type: 'int', nullable: true })
+    metroLineId: number | null;
 
     @Column({ type: 'int', nullable: true })
     metroTime: number | null;
-
-    @Column({ type: 'jsonb', default: '[]' })
-    metroNearest: { station: string; line: string; time: number | null }[];
 
     // --- Фото ---
     @Column({ type: 'jsonb', default: '[]' })
     photos: string[];
 
-    @Column({ type: 'int', default: 0 })
-    photosCount: number;
-
     // --- Продавец ---
-    @Column({ type: 'varchar', nullable: true })
-    sellerType: 'agency' | 'owner' | null;
+    @Column({ type: 'int', nullable: true })
+    sellerType: number | null; // 0=агентство, 1=собственник
 
     @Column({ type: 'varchar', nullable: true })
-    sellerName: string | null;
+    agencyName: string | null;
+
+    @Column({ type: 'varchar', nullable: true })
+    agencyUuid: string | null;
+
+    // --- История цен ---
+    @Column({ type: 'jsonb', default: '[]' })
+    priceHistory: { date: string; price: number; currency: number }[];
+
+    // --- Статус ---
+    @Column({ type: 'boolean', default: true })
+    isActive: boolean;
 
     // --- Даты объявления ---
     @Column({ type: 'timestamptz', nullable: true })
     publishedAt: Date | null;
 
-    @Column({ type: 'int', nullable: true })
-    daysOnMarket: number | null;
-
-    // --- История цен ---
-    @Column({ type: 'jsonb', default: '[]' })
-    priceHistory: {
-        date: string;
-        priceUsd: number | null;
-        priceByn: number | null;
-    }[];
-
-    // --- Статус ---
-    @Column({ type: 'boolean', default: true })
-    isActive: boolean;
+    @Column({ type: 'timestamptz', nullable: true })
+    sourceUpdatedAt: Date | null;
 
     // --- Системные даты ---
     @CreateDateColumn()

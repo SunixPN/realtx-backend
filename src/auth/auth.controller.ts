@@ -4,12 +4,14 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service.js';
 import { EmailVerificationService } from './email-verification.service.js';
 import { PasswordResetService } from './password-reset.service.js';
+import { FirebaseAdminService } from './firebase-admin.service.js';
 import { RegisterDto } from './dto/register-dto.js';
 import { LoginDto } from './dto/login-dto.js';
 import { VerifyEmailDto } from './dto/verify-email-dto.js';
 import { RequestPasswordResetDto } from './dto/request-password-reset-dto.js';
 import { VerifyResetTokenDto } from './dto/verify-reset-token-dto.js';
 import { ConfirmPasswordResetDto } from './dto/confirm-password-reset-dto.js';
+import { PhoneLoginDto } from './dto/phone-login-dto.js';
 import { Public } from './decorators/public.decorator.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import { UserEntity } from '../user/entities/user.entity.js';
@@ -20,6 +22,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly emailVerificationService: EmailVerificationService,
     private readonly passwordResetService: PasswordResetService,
+    private readonly firebaseAdmin: FirebaseAdminService,
     private readonly config: ConfigService,
   ) {}
 
@@ -159,6 +162,48 @@ export class AuthController {
   ) {
     await this.authService.deleteAccount(user.id);
     res.clearCookie('refresh', { path: '/auth' });
+  }
+
+  // --- Вход по номеру телефона (Firebase Phone Auth) ---
+
+  // Фронт делает весь phone-auth флоу через Firebase JS SDK: RecaptchaVerifier →
+  // signInWithPhoneNumber → confirm(code) → getIdToken(). Полученный ID токен шлёт сюда.
+  // Мы проверяем его через Firebase Admin SDK и выдаём наши JWT.
+  @Public()
+  @Post('phone/login')
+  @HttpCode(HttpStatus.OK)
+  async phoneLogin(
+    @Body() dto: PhoneLoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { phone } = await this.firebaseAdmin.verifyPhoneToken(dto.idToken);
+
+    const result = await this.authService.phoneLogin(phone, {
+      userAgent: req.headers['user-agent'] ?? null,
+      ipAddress: req.ip ?? null,
+    });
+
+    this.setRefreshCookie(res, result.refreshToken);
+
+    return {
+      accessToken: result.accessToken,
+      user: result.user,
+    };
+  }
+
+  // Подтверждение номера для уже залогиненного юзера (например, регистрировался по email).
+  // Фронт делает тот же Firebase Phone Auth флоу и присылает ID токен сюда с JWT.
+  @Post('phone/confirm')
+  @HttpCode(HttpStatus.OK)
+  async phoneConfirm(
+    @CurrentUser() user: UserEntity,
+    @Body() dto: PhoneLoginDto,
+  ) {
+    const { phone } = await this.firebaseAdmin.verifyPhoneToken(dto.idToken);
+    const updated = await this.authService.confirmPhone(user.id, phone);
+    const { passwordHash: _p, refreshTokens: _r, ...safeUser } = updated;
+    return safeUser;
   }
 
   // --- Сброс пароля ---

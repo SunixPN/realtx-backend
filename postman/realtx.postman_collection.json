@@ -108,6 +108,58 @@
           }
         },
         {
+          "name": "Phone login (Firebase)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/phone/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "phone", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"вставь_ID_токен_с_фронта\"\n}"
+            },
+            "description": "Публичный эндпоинт. Принимает Firebase ID токен, полученный после подтверждения SMS-кода на фронте (через Firebase JS SDK). Бек проверяет sign_in_provider === 'phone', извлекает номер, ищет/создаёт юзера, выдаёт наши JWT + refresh cookie."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "  console.log('accessToken сохранён (phone login)');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Phone confirm (attach to current user)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/phone/confirm",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "phone", "confirm"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"вставь_ID_токен_с_фронта\"\n}"
+            },
+            "description": "Защищённый эндпоинт. Для юзеров, зарегистрированных без телефона (например, по email). Принимает Firebase ID токен из phone-auth флоу, извлекает номер, привязывает его к текущему юзеру и ставит phoneVerified=true. 409, если номер уже занят другим аккаунтом."
+          }
+        },
+        {
           "name": "Refresh",
           "request": {
             "method": "POST",

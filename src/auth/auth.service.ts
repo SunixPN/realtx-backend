@@ -68,6 +68,50 @@ export class AuthService {
     return this.issueTokens(user, ctx);
   }
 
+  /**
+   * Вход/регистрация по номеру телефона.
+   * Вызывается после того, как FirebaseAdminService уже проверил ID токен
+   * и извлёк из него номер — так что здесь номеру можно доверять.
+   */
+  async phoneLogin(phone: string, ctx: SessionContext = {}): Promise<AuthResult> {
+    let user = await this.userRepo.findOne({ where: { phone } });
+
+    if (!user) {
+      // Первый вход — регистрируем юзера. Пароля/email нет, phoneVerified = true.
+      user = await this.userRepo.save(
+        this.userRepo.create({
+          phone,
+          phoneVerified: true,
+          lastLoginAt: new Date(),
+        }),
+      );
+    } else {
+      await this.userRepo.update(user.id, { lastLoginAt: new Date() });
+    }
+
+    return this.issueTokens(user, ctx);
+  }
+
+  /**
+   * Подтверждение номера для уже залогиненного юзера.
+   * ID токен уже проверен во FirebaseAdminService, номер доверенный.
+   * Если этот номер уже привязан к другому аккаунту — конфликт.
+   */
+  async confirmPhone(userId: string, phone: string): Promise<UserEntity> {
+    const owner = await this.userRepo.findOne({ where: { phone } });
+    if (owner && owner.id !== userId) {
+      throw new ConflictException('Этот номер уже привязан к другому аккаунту');
+    }
+
+    await this.userRepo.update(userId, { phone, phoneVerified: true });
+
+    const updated = await this.userRepo.findOne({ where: { id: userId } });
+    if (!updated) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+    return updated;
+  }
+
   async login(dto: LoginDto, ctx: SessionContext = {}): Promise<AuthResult> {
     const user = await this.userRepo
       .createQueryBuilder('user')

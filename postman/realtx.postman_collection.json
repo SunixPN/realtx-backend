@@ -108,6 +108,38 @@
           }
         },
         {
+          "name": "Google login (Firebase)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/google/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "google", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"вставь_ID_токен_с_фронта\"\n}"
+            },
+            "description": "Публичный эндпоинт. Принимает Firebase ID токен после Google Sign-In (signInWithPopup). Бек проверяет sign_in_provider === 'google.com', email_verified, ищет/создаёт юзера (merge если email уже есть), выдаёт наши JWT + refresh cookie."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "  console.log('accessToken сохранён (google login)');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Phone login (Firebase)",
           "request": {
             "method": "POST",

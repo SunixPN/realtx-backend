@@ -69,6 +69,38 @@ export class AuthService {
   }
 
   /**
+   * Вход/регистрация через Google.
+   * Email уже верифицирован Google — ставим emailVerified: true.
+   * Если аккаунт с таким email уже есть (регистрация по паролю) — мержим: логиним в него.
+   */
+  async googleLogin(
+    googleEmail: string,
+    googleName: string | null,
+    ctx: SessionContext = {},
+  ): Promise<AuthResult> {
+    let user = await this.userRepo.findOne({ where: { email: googleEmail } });
+
+    if (!user) {
+      user = await this.userRepo.save(
+        this.userRepo.create({
+          email: googleEmail,
+          name: googleName ?? undefined,
+          emailVerified: true,
+          lastLoginAt: new Date(),
+        }),
+      );
+    } else {
+      const patch: Partial<UserEntity> = { lastLoginAt: new Date() };
+      if (!user.emailVerified) patch.emailVerified = true;
+      if (!user.name && googleName) patch.name = googleName;
+      await this.userRepo.update(user.id, patch);
+      user = { ...user, ...patch };
+    }
+
+    return this.issueTokens(user, ctx);
+  }
+
+  /**
    * Вход/регистрация по номеру телефона.
    * Вызывается после того, как FirebaseAdminService уже проверил ID токен
    * и извлёк из него номер — так что здесь номеру можно доверять.

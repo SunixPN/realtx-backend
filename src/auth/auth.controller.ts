@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service.js';
@@ -12,6 +12,7 @@ import { RequestPasswordResetDto } from './dto/request-password-reset-dto.js';
 import { VerifyResetTokenDto } from './dto/verify-reset-token-dto.js';
 import { ConfirmPasswordResetDto } from './dto/confirm-password-reset-dto.js';
 import { PhoneLoginDto } from './dto/phone-login-dto.js';
+import { GoogleLoginDto } from './dto/google-login-dto.js';
 import { Public } from './decorators/public.decorator.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import { UserEntity } from '../user/entities/user.entity.js';
@@ -99,7 +100,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const oldToken = req.cookies?.refresh as string | undefined;
+    const oldToken = req.cookies?.refresh_token as string | undefined;
 
     const result = await this.authService.refresh(oldToken!, {
       userAgent: req.headers['user-agent'] ?? null,
@@ -121,9 +122,9 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const token = req.cookies?.refresh as string | undefined;
+    const token = req.cookies?.refresh_token as string | undefined;
     await this.authService.logout(token);
-    res.clearCookie('refresh', { path: '/auth' });
+    res.clearCookie('refresh_token', { path: '/' });
   }
 
   // --- Управление сессиями ---
@@ -149,7 +150,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.authService.logoutAll(user.id);
-    res.clearCookie('refresh', { path: '/auth' });
+    res.clearCookie('refresh_token', { path: '/' });
   }
 
   // --- Удаление аккаунта ---
@@ -161,7 +162,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.authService.deleteAccount(user.id);
-    res.clearCookie('refresh', { path: '/auth' });
+    res.clearCookie('refresh_token', { path: '/' });
   }
 
   // --- Вход по номеру телефона (Firebase Phone Auth) ---
@@ -206,6 +207,35 @@ export class AuthController {
     return safeUser;
   }
 
+  // --- Вход через Google (Firebase Google Sign-In) ---
+
+  @Public()
+  @Post('google/login')
+  @HttpCode(HttpStatus.OK)
+  async googleLogin(
+    @Body() dto: GoogleLoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { email, name, emailVerified } = await this.firebaseAdmin.verifyGoogleToken(dto.idToken);
+
+    if (!emailVerified) {
+      throw new UnauthorizedException('Google не подтвердил email');
+    }
+
+    const result = await this.authService.googleLogin(email, name, {
+      userAgent: req.headers['user-agent'] ?? null,
+      ipAddress: req.ip ?? null,
+    });
+
+    this.setRefreshCookie(res, result.refreshToken);
+
+    return {
+      accessToken: result.accessToken,
+      user: result.user,
+    };
+  }
+
   // --- Сброс пароля ---
 
   // Шаг 1: запрос ссылки. Всегда 202 — не палим наличие аккаунта.
@@ -239,11 +269,11 @@ export class AuthController {
     const days = Number(this.config.get('JWT_REFRESH_TTL_DAYS') ?? 30);
     const secure = this.config.get('COOKIE_SECURE') === 'true';
 
-    res.cookie('refresh', token, {
+    res.cookie('refresh_token', token, {
       httpOnly: true,
       secure,
       sameSite: 'strict',
-      path: '/auth',
+      path: '/',
       maxAge: days * 24 * 60 * 60 * 1000,
     });
   }

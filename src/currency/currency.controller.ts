@@ -1,4 +1,4 @@
-import { Controller, HttpCode, HttpStatus, Post, Inject, forwardRef } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Post, Inject, forwardRef } from '@nestjs/common';
 import { CurrencyRatesService } from './currency-rates.service.js';
 import { EstateService } from '../estate/estate.service.js';
 import { Public } from '../auth/decorators/public.decorator.js';
@@ -15,6 +15,22 @@ export class CurrencyController {
         @Inject(forwardRef(() => EstateService))
         private readonly estateService: EstateService,
     ) {}
+
+    /**
+     * Публичный снимок последних курсов: usdToByn, eurToByn, effectiveOn.
+     * Нужен фронту, чтобы конвертировать priceMin/priceMax при смене
+     * displayCurrency (иначе фильтр остаётся в старой валюте и обнуляет выдачу).
+     */
+    @Public()
+    @Get('rates')
+    async rates() {
+        const r = await this.currencyRates.getLatest();
+        return {
+            effectiveOn: r.effectiveOn,
+            usdToByn: Number(r.usdToByn),
+            eurToByn: Number(r.eurToByn),
+        };
+    }
 
     @Public()
     @Post('refresh')

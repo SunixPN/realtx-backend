@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
@@ -7,6 +10,7 @@ import { FilterEstatesDto } from "./dto/filter-estates.dto.js";
 import { MapPointFilterDto } from "./dto/map-point-filter.dto.js";
 import { GetEstateDto } from "./dto/get-estate.dto.js";
 import { HouseEstatesDto } from "./dto/house-estates.dto.js";
+import { DistrictProfitabilityDto } from "./dto/district-profitability.dto.js";
 import {
     CurrencyRatesService,
     CURRENCY_USD,
@@ -15,6 +19,18 @@ import {
     type ConvertibleCurrency,
 } from '../currency/currency-rates.service.js';
 import { CurrencyRateEntity } from '../currency/entities/currency-rate.entity.js';
+
+const MINSK_DISTRICTS = [
+    'Центральный',
+    'Советский',
+    'Первомайский',
+    'Партизанский',
+    'Заводской',
+    'Ленинский',
+    'Московский',
+    'Октябрьский',
+    'Фрунзенский',
+] as const;
 
 // Маппинг ISO 4217 → колонки с денормализованной ценой в EstateEntity.
 // Единый источник — тут; ниже используется и в applyFilters, и в SELECT.
@@ -271,6 +287,113 @@ export class EstateService {
         };
     }
 
+    private hasActiveFilters(dto: EstateFilterBaseDto): boolean {
+        return !!(
+            dto.priceMin !== undefined ||
+            dto.priceMax !== undefined ||
+            dto.rooms?.length ||
+            dto.areaMin !== undefined ||
+            dto.areaMax !== undefined ||
+            dto.storeyMin !== undefined ||
+            dto.storeyMax !== undefined ||
+            dto.notFirstOrLast ||
+            dto.buildingYearMin !== undefined ||
+            dto.buildingYearMax !== undefined ||
+            dto.wallMaterial?.length ||
+            dto.repairState?.length ||
+            dto.metroTimeMax !== undefined ||
+            dto.ownerOnly ||
+            dto.q?.trim()
+        );
+    }
+
+    async getDistrictProfitability(dto: DistrictProfitabilityDto) {
+        const displayCurrency = this.resolveCurrency(dto);
+        // Score считаем всегда в USD, чтобы тепловая карта не менялась при
+        // переключении валюты. avgPricePerM2 для лейбла берём отдельно в
+        // displayCurrency.
+        const scoreCol = PER_M2_COL_BY_CURRENCY[CURRENCY_USD];
+        const displayCol = PER_M2_COL_BY_CURRENCY[displayCurrency];
+
+        // priceMin/priceMax приходят в displayCurrency (BYN/EUR/USD). Для того
+        // чтобы фильтр по цене работал против priceUsd-колонки, конвертируем
+        // границы в USD через актуальный снапшот курсов. Иначе «302 600 BYN»
+        // применяется как «302 600 USD» и отсекает почти всё.
+        const rates = await this.currencyRates.getLatest();
+        const priceMinUsd = this.currencyRates.convert(dto.priceMin ?? null, displayCurrency, CURRENCY_USD, rates);
+        const priceMaxUsd = this.currencyRates.convert(dto.priceMax ?? null, displayCurrency, CURRENCY_USD, rates);
+
+        // Игнорируем districts-фильтр — показываем все районы всегда.
+        // displayCurrency в фильтрах = USD, priceMin/priceMax тоже уже в USD.
+        const filtersDto: EstateFilterBaseDto = {
+            ...dto,
+            districts: undefined,
+            displayCurrency: CURRENCY_USD,
+            priceMin: priceMinUsd ?? undefined,
+            priceMax: priceMaxUsd ?? undefined,
+        };
+        const mode = this.hasActiveFilters(filtersDto) ? 'filters' : 'price';
+
+        // Единая логика: score и label price считаются на ОДНОМ подмножестве —
+        // isActive + фильтры пользователя. В price-mode фильтров нет, подмножество
+        // == все активные объекты (как раньше). В filters-mode — уже сужено.
+        // Так «выгодность» = «средняя цена за м² в этом районе среди подходящих
+        // мне квартир относительно общей средней среди подходящих» — метрика
+        // одинаковая, фильтры лишь меняют пул сравнения.
+        const perDistrictQb = this.estateRepo
+            .createQueryBuilder('e')
+            .select('e.districtName', 'district')
+            .addSelect('COUNT(*)', 'matches')
+            .addSelect(`AVG(e.${scoreCol})`, 'avgPpmUsd')
+            .addSelect(`AVG(e.${displayCol})`, 'avgPpmDisplay')
+            .andWhere('e.districtName IS NOT NULL');
+        this.applyFilters(perDistrictQb, filtersDto);
+        const perDistrictRaw = await perDistrictQb
+            .groupBy('e.districtName')
+            .getRawMany<{ district: string; matches: string; avgPpmUsd: string | null; avgPpmDisplay: string | null }>();
+
+        // Overall avg ppm по тому же отфильтрованному подмножеству — денежный знаменатель для score.
+        const overallQb = this.estateRepo
+            .createQueryBuilder('e')
+            .select(`AVG(e.${scoreCol})`, 'avg')
+            .andWhere(`e.${scoreCol} IS NOT NULL`);
+        this.applyFilters(overallQb, filtersDto);
+        const overallRow = await overallQb.getRawOne<{ avg: string | null }>();
+        const overallAvgPpmUsd = overallRow?.avg ? Number(overallRow.avg) : null;
+
+        const perDistrictMap = new Map(
+            perDistrictRaw.map(r => [r.district, {
+                matches: Number(r.matches),
+                avgPpmUsd: r.avgPpmUsd ? Number(r.avgPpmUsd) : null,
+                avgPpmDisplay: r.avgPpmDisplay ? Number(r.avgPpmDisplay) : null,
+            }])
+        );
+
+        return MINSK_DISTRICTS.map(district => {
+            const stats = perDistrictMap.get(district);
+            const matchCount = stats?.matches ?? 0;
+            const avgPpmUsd = stats?.avgPpmUsd ?? null;
+            const avgPpmDisplay = stats?.avgPpmDisplay ?? null;
+
+            let score: number;
+            if (avgPpmUsd === null || overallAvgPpmUsd === null || overallAvgPpmUsd === 0) {
+                score = 0;
+            } else {
+                const ratio = avgPpmUsd / overallAvgPpmUsd;
+                score = Math.round(Math.max(0, Math.min(100, (2 - ratio) * 50)));
+            }
+
+            return {
+                district,
+                score,
+                avgPricePerM2: avgPpmDisplay !== null ? Math.round(avgPpmDisplay) : null,
+                currency: displayCurrency,
+                matchCount,
+                mode,
+            };
+        });
+    }
+
     /**
      * Пересчитывает priceUsd/Byn/Eur и pricePerM2Usd/Byn/Eur у всех записей по
      * актуальным курсам. Батчами, чтобы не тянуть всю таблицу в память.
@@ -314,6 +437,51 @@ export class EstateService {
             ...metroRows.map((r) => ({ type: 'metro' as const, value: r.value })),
             ...addressRows.map((r) => ({ type: 'address' as const, value: r.value })),
         ];
+    }
+
+    private cachedDistrictsGeoJSON: object | null = null;
+
+    private computeCentroid(geometry: { type: string; coordinates: unknown }): { lng: number; lat: number } {
+        type Ring = [number, number][];
+        let ring: Ring;
+        if (geometry.type === 'Polygon') {
+            ring = (geometry.coordinates as Ring[])[0];
+        } else {
+            // MultiPolygon: берём кольцо с наибольшим числом вершин (крупнейший полигон).
+            let maxLen = 0;
+            ring = [];
+            for (const poly of geometry.coordinates as Ring[][]) {
+                if (poly[0].length > maxLen) { maxLen = poly[0].length; ring = poly[0]; }
+            }
+        }
+        const pts = ring.slice(0, -1); // закрывающая вершина == первой, исключаем
+        const lng = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+        const lat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+        return { lng, lat };
+    }
+
+    getDistrictsGeoJSON(): object {
+        if (this.cachedDistrictsGeoJSON) return this.cachedDistrictsGeoJSON;
+        const here = dirname(fileURLToPath(import.meta.url));
+        const geoPath = join(here, '..', 'parser', 'data', 'minsk-districts.geojson');
+        // Полигон Партизанского района пред-обрезан offline (OSM отдаёт вместо
+        // него границу города; правильный полигон = граница города минус остальные 8).
+        const raw = JSON.parse(readFileSync(geoPath, 'utf8')) as {
+            type: string;
+            features: Array<{
+                type: string;
+                properties: Record<string, unknown>;
+                geometry: { type: string; coordinates: unknown };
+            }>;
+        };
+        this.cachedDistrictsGeoJSON = {
+            ...raw,
+            features: raw.features.map(f => ({
+                ...f,
+                properties: { ...f.properties, centroid: this.computeCentroid(f.geometry) },
+            })),
+        };
+        return this.cachedDistrictsGeoJSON;
     }
 
     async recomputePrices(): Promise<number> {

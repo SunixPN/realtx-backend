@@ -5,6 +5,7 @@ import { MapPointFilterDto } from "./dto/map-point-filter.dto.js";
 import { GetEstateDto } from "./dto/get-estate.dto.js";
 import { HouseEstatesDto } from "./dto/house-estates.dto.js";
 import { SuggestDto } from "./dto/suggest.dto.js";
+import { DistrictProfitabilityDto } from "./dto/district-profitability.dto.js";
 import { Public } from "../auth/decorators/public.decorator.js";
 
 @Controller('estate')
@@ -28,6 +29,18 @@ export class EstateController {
     @Get('map-points')
     mapPoints(@Query() dto: MapPointFilterDto) {
         return this.estateService.getMapPoints(dto);
+    }
+
+    @Public()
+    @Get('district-profitability')
+    districtProfitability(@Query() dto: DistrictProfitabilityDto) {
+        return this.estateService.getDistrictProfitability(dto);
+    }
+
+    @Public()
+    @Get('districts-geojson')
+    districtsGeoJSON() {
+        return this.estateService.getDistrictsGeoJSON();
     }
 
     // «Квартиры в одном доме» — bbox из cluster'а Mapbox с фронта.

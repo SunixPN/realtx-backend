@@ -13,6 +13,7 @@ import {
 } from '../currency/currency-rates.service.js';
 import { CurrencyRateEntity } from '../currency/entities/currency-rate.entity.js';
 import { DistrictService } from './district.service.js';
+import { toOriginalPhoto } from './utils/photo-url.js';
 
 @Injectable()
 export class ParserService {
@@ -56,30 +57,6 @@ export class ParserService {
 
     await this.markInactive();
     this.logger.log(`Готово. Обработано ${saved} объявлений.`);
-  }
-
-  /**
-   * Пересчитывает districtName у всех записей по (lat, lng). Нужно один раз
-   * после подключения DistrictService — до этого districtName содержал
-   * "Минский" (район области из realt.by), из-за чего фильтр по городским
-   * районам на фронте не работал.
-   */
-  async backfillDistricts(): Promise<{ updated: number; unresolved: number }> {
-    const items = await this.estateRepo.find({
-      select: { id: true, lat: true, lng: true, districtName: true },
-    });
-    let updated = 0;
-    let unresolved = 0;
-    for (const it of items) {
-      const resolved = this.districts.resolveByCoords(it.lat, it.lng);
-      if (resolved == null) unresolved++;
-      if (resolved !== it.districtName) {
-        await this.estateRepo.update(it.id, { districtName: resolved });
-        updated++;
-      }
-    }
-    this.logger.log(`Backfill районов: обновлено ${updated}, без района ${unresolved} из ${items.length}`);
-    return { updated, unresolved };
   }
 
   private async fetchPage(page: number): Promise<any[]> {
@@ -134,8 +111,58 @@ export class ParserService {
 
         await this.estateRepo.update(existing.id, entity);
       } else {
+        // Защита от «призраков» — объявлений, которых нет на сайте,
+        // но searchObjectsV2 продолжает их возвращать.
+        if (!(await this.isSourceUrlAlive(entity.sourceUrl))) {
+          this.logger.debug(`Пропускаем фантом: ${entity.sourceUrl}`);
+          continue;
+        }
         await this.estateRepo.save(entity);
       }
+    }
+  }
+
+  // Ежедневная валидация: HEAD-проверка всех активных объявлений батчами по 20.
+  // Деактивирует те, у кого sourceUrl возвращает 404.
+  async validateActiveListings(): Promise<void> {
+    const BATCH = 20;
+    let offset = 0;
+    let deactivated = 0;
+
+    while (true) {
+      const listings = await this.estateRepo.find({
+        where: { isActive: true },
+        select: { id: true, sourceUrl: true },
+        skip: offset,
+        take: BATCH,
+      });
+
+      if (listings.length === 0) break;
+
+      await Promise.all(
+        listings.map(async (l) => {
+          if (await this.isSourceUrlAlive(l.sourceUrl)) return;
+          await this.estateRepo.update(l.id, { isActive: false });
+          deactivated++;
+        }),
+      );
+
+      offset += BATCH;
+    }
+
+    this.logger.log(`Валидация завершена. Деактивировано: ${deactivated}`);
+  }
+
+  // HEAD-проверка sourceUrl. Возвращает false только при явном 404 — сетевые
+  // ошибки считаем «живым», чтобы не удалять хорошие объявления из-за флапа.
+  private async isSourceUrlAlive(url: string | null | undefined): Promise<boolean> {
+    if (!url) return true;
+    try {
+      await axios.head(url, { timeout: 5000, maxRedirects: 3 });
+      return true;
+    } catch (err: any) {
+      if (err.response?.status === 404) return false;
+      return true;
     }
   }
 
@@ -204,7 +231,7 @@ export class ParserService {
       metroStation: r.metroStationName ?? null,
       metroLineId: r.metroLineId ?? null,
       metroTime: r.metroTime ?? null,
-      photos: Array.isArray(r.images) ? r.images : [],
+      photos: Array.isArray(r.images) ? r.images.map(toOriginalPhoto) : [],
       sellerType: r.seller ?? null,
       agencyName: r.agencyName ?? null,
       agencyUuid: r.agencyUuid ?? null,

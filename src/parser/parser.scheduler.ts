@@ -15,4 +15,13 @@ export class ParserScheduler {
     await this.parserService.parseAll();
     this.logger.log('Парсинг завершён.');
   }
+
+  // Каждый день в 08:00 — после парсинга, чтобы деактивировать фантомы
+  // которые API realt.by возвращает, но страница которых уже не существует.
+  @Cron('0 8 * * *')
+  async runDailyValidate() {
+    this.logger.log('Запуск валидации активных объявлений...');
+    await this.parserService.validateActiveListings();
+    this.logger.log('Валидация завершена.');
+  }
 }

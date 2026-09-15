@@ -751,6 +751,43 @@
           }
         },
         {
+          "name": "District profitability (heat map)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/estate/district-profitability?displayCurrency=USD",
+              "host": ["{{baseUrl}}"],
+              "path": ["estate", "district-profitability"],
+              "query": [
+                {
+                  "key": "displayCurrency",
+                  "value": "USD",
+                  "description": "USD/BYN/EUR или 840/933/978. Влияет на avgPricePerM2 и ценовые фильтры."
+                },
+                {
+                  "key": "rooms",
+                  "value": "1,2",
+                  "description": "Фильтр по комнатам — переключает mode: price → filters",
+                  "disabled": true
+                },
+                {
+                  "key": "priceMax",
+                  "value": "100000",
+                  "disabled": true
+                },
+                {
+                  "key": "districts",
+                  "value": "",
+                  "description": "Принимается, но игнорируется — всегда возвращаем все 9 районов",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Выгодность 9 районов Минска. Два режима:\n- `mode: 'price'` (нет фильтров): score = clamp((2 − avgPpm/overallAvgPpm) × 50, 0, 100). Дешевле среднего → ближе к 100.\n- `mode: 'filters'` (есть хотя бы один фильтр кроме districts): score = matchCount / totalMatchesAcrossAllDistricts × 100. Так самый «плотный» район получает 100%.\n\nОтвет: [{ district, score, avgPricePerM2, currency, matchCount, totalCount, mode }] — всегда 9 элементов, даже для районов без данных (score: 0)."
+          }
+        },
+        {
           "name": "Estate by id (detail)",
           "request": {
             "method": "GET",
@@ -811,6 +848,19 @@
               "body": "{\n  \"id\": 1,\n  \"price\": 231642,\n  \"pricePerM2\": 6525,\n  \"displayCurrency\": 933,\n  \"originalPrice\": 77000,\n  \"originalCurrency\": 840,\n  \"priceHistory\": [\n    {\n      \"date\": \"2026-08-18T10:00:00.000Z\",\n      \"usd\": 81321,\n      \"byn\": 265912,\n      \"eur\": 74200\n    },\n    {\n      \"date\": \"2026-09-01T10:00:00.000Z\",\n      \"usd\": 77000,\n      \"byn\": 231489,\n      \"eur\": 66287\n    },\n    {\n      \"date\": \"2026-09-14T10:00:00.000Z\",\n      \"usd\": 77050,\n      \"byn\": 231642,\n      \"eur\": 66300\n    }\n  ],\n  \"priceChange\": {\n    \"deltaUsd\": -4271,\n    \"deltaByn\": -34270,\n    \"deltaEur\": -7900,\n    \"deltaPctUsd\": -5.3,\n    \"deltaPctByn\": -12.9,\n    \"deltaPctEur\": -10.6,\n    \"changes\": 2\n  }\n}"
             }
           ]
+        },
+        {
+          "name": "Districts GeoJSON (heat map polygons)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/estate/districts-geojson",
+              "host": ["{{baseUrl}}"],
+              "path": ["estate", "districts-geojson"]
+            },
+            "description": "GeoJSON всех 9 районов Минска с добавленным полем `centroid: { lng, lat }` в properties каждой фичи. Используется как источник для Mapbox fill/line layers тепловой карты. Результат не зависит от фильтров и кешируется в памяти сервиса."
+          }
         },
         {
           "name": "House (apartments at bbox)",

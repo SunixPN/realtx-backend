@@ -1,22 +1,24 @@
 import { Controller, Post, HttpCode, HttpStatus } from '@nestjs/common';
 import { ParserService } from './parser.service.js';
-import {Public} from "../auth/decorators/public.decorator.js";
+import { Public } from '../auth/decorators/public.decorator.js';
 
 @Controller('parser')
 export class ParserController {
   constructor(private readonly parserService: ParserService) {}
 
+  @Public()
   @Post('run')
   @HttpCode(HttpStatus.ACCEPTED)
   async run() {
-    // Запускаем в фоне — не ждём завершения, сразу отвечаем
     this.parserService.parseAll().catch(console.error);
     return { message: 'Парсинг запущен' };
   }
 
-
-  @Post('backfill-districts')
-  async backfillDistricts() {
-    return this.parserService.backfillDistricts();
+  @Public()
+  @Post('validate')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async validate() {
+    this.parserService.validateActiveListings().catch(console.error);
+    return { message: 'Валидация запущена' };
   }
 }

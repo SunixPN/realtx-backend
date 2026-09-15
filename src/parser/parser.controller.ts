@@ -1,5 +1,6 @@
 import { Controller, Post, HttpCode, HttpStatus } from '@nestjs/common';
 import { ParserService } from './parser.service.js';
+import {Public} from "../auth/decorators/public.decorator.js";
 
 @Controller('parser')
 export class ParserController {
@@ -11,5 +12,11 @@ export class ParserController {
     // Запускаем в фоне — не ждём завершения, сразу отвечаем
     this.parserService.parseAll().catch(console.error);
     return { message: 'Парсинг запущен' };
+  }
+
+
+  @Post('backfill-districts')
+  async backfillDistricts() {
+    return this.parserService.backfillDistricts();
   }
 }

@@ -11,6 +11,7 @@ export const ApiInfo = {
         results {
           uuid
           unid
+          code
           createdAt
           updatedAt
           address

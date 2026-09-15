@@ -18,6 +18,9 @@ export class EstateEntity {
     @Column({ type: 'varchar', nullable: true })
     sourceUnid: string | null; // Короткий код ("SITEJ4VHTS7F")
 
+    @Column({ type: 'int', nullable: true })
+    sourceCode: number | null; // Числовой ID (для URL: /sale-flats/object/{code}/)
+
     @Column({ type: 'varchar', nullable: true })
     sourceUrl: string | null; // Ссылка на объявление
 
@@ -37,6 +40,28 @@ export class EstateEntity {
 
     @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
     pricePerM2: number | null;
+
+    // --- Цены в 3-х валютах (денормализованные, пересчитываются парсером
+    // и CurrencyRatesScheduler при обновлении курсов). Всегда актуальны
+    // относительно последнего снапшота curr_rates. Nullable, если исходной
+    // цены нет. Фронт выбирает нужную колонку через ?currency=USD|BYN|EUR. ---
+    @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+    priceUsd: number | null;
+
+    @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+    priceByn: number | null;
+
+    @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+    priceEur: number | null;
+
+    @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+    pricePerM2Usd: number | null;
+
+    @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+    pricePerM2Byn: number | null;
+
+    @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+    pricePerM2Eur: number | null;
 
     @Column({ type: 'int', nullable: true })
     priceChangeDirection: number | null; // 0=нет, 1=вверх, -1=вниз

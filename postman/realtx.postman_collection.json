@@ -35,11 +35,21 @@
           "name": "Register",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/auth/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "register"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -66,11 +76,21 @@
           "name": "Login",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -98,12 +118,20 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/me",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "me"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
             }
           }
         },
@@ -111,11 +139,22 @@
           "name": "Google login (Firebase)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/auth/google/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "google", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "google",
+                "login"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -143,11 +182,22 @@
           "name": "Phone login (Firebase)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/auth/phone/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "phone", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "phone",
+                "login"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -176,13 +226,25 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/phone/confirm",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "phone", "confirm"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "phone",
+                "confirm"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -197,8 +259,13 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/auth/refresh",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "refresh"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
             },
             "description": "Refresh cookie отправляется Postman автоматически (если был Login/Register в этой же вкладке)."
           },
@@ -223,12 +290,21 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/verify-email/resend",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "verify-email", "resend"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "verify-email",
+                "resend"
+              ]
             },
             "description": "Отправляет новое письмо с подтверждением на email текущего юзера."
           }
@@ -237,11 +313,21 @@
           "name": "Verify email by token",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/auth/verify-email",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "verify-email"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "verify-email"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -255,12 +341,20 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/sessions",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "sessions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "sessions"
+              ]
             }
           },
           "event": [
@@ -286,12 +380,21 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/sessions/{{sessionId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "sessions", "{{sessionId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "sessions",
+                "{{sessionId}}"
+              ]
             },
             "description": "Использует sessionId из последнего вызова 'List sessions'."
           }
@@ -302,8 +405,13 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/auth/logout",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "logout"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
             }
           }
         },
@@ -312,12 +420,20 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/logout-all",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "logout-all"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout-all"
+              ]
             }
           }
         },
@@ -326,12 +442,20 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/account",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "account"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "account"
+              ]
             }
           }
         }
@@ -345,11 +469,22 @@
           "name": "Request reset",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/auth/password-reset/request",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "password-reset", "request"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "password-reset",
+                "request"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -362,11 +497,22 @@
           "name": "Verify token",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/auth/password-reset/verify",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "password-reset", "verify"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "password-reset",
+                "verify"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -379,11 +525,22 @@
           "name": "Confirm reset",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/auth/password-reset/confirm",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "password-reset", "confirm"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "password-reset",
+                "confirm"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -403,10 +560,296 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/parser/run",
-              "host": ["{{baseUrl}}"],
-              "path": ["parser", "run"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "parser",
+                "run"
+              ]
             },
             "description": "Запускает парсинг realt.by в фоне. Ответ возвращается сразу, прогресс — в логах NestJS."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Currency",
+      "item": [
+        {
+          "name": "Refresh NBRB rates + recompute prices",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/currency/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "currency",
+                "refresh"
+              ]
+            },
+            "description": "Тянет курсы USD/EUR с api.nbrb.by и пересчитывает priceUsd/Byn/Eur + pricePerM2Usd/Byn/Eur у всех объявлений. Возвращает { effectiveOn, affected }. По расписанию делается автоматически в 05:15 ежедневно."
+          }
+        },
+        {
+          "name": "Recompute prices (без фетча курсов)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/currency/recompute",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "currency",
+                "recompute"
+              ]
+            },
+            "description": "Пересчитывает priceUsd/Byn/Eur у всех объявлений по последним имеющимся курсам. Используется для разового бэкфилла существующих записей после деплоя."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Estate",
+      "item": [
+        {
+          "name": "Search estates (paginated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/estate/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "estate",
+                "search"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rooms\": [1, 2],\n  \"priceMin\": 50000,\n  \"priceMax\": 150000,\n  \"displayCurrency\": \"USD\",\n  \"areaMin\": 30,\n  \"districts\": [\"Центральный\", \"Советский\"],\n  \"q\": \"Немига\",\n  \"ownerOnly\": false,\n  \"page\": 1,\n  \"limit\": 20,\n  \"sortBy\": \"publishedAt\",\n  \"sortOrder\": \"DESC\"\n}"
+            },
+            "description": "Поиск объявлений с фильтрами и пагинацией. `displayCurrency` (USD/BYN/EUR или 840/933/978) — валюта отображения: priceMin/priceMax трактуются в ней, поле `price` в ответе также в этой валюте; в `originalPrice`/`originalCurrency` — исходные значения. По умолчанию USD."
+          }
+        },
+        {
+          "name": "Suggest (address + metro)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/estate/suggest?q=нем&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "estate",
+                "suggest"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "нем",
+                  "description": "Префикс (ILIKE 'q%'). Пусто = топ по алфавиту."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "1..20, по умолчанию 10"
+                }
+              ]
+            },
+            "description": "Подсказки для строки поиска: сначала станции метро, затем адреса — все из АКТИВНЫХ объявлений. Ответ: [{ type: 'metro' | 'address', value: string }]. Матчинг по префиксу (ILIKE 'q%') — работает btree-индекс, шум меньше."
+          }
+        },
+        {
+          "name": "Map points (lightweight)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/estate/map-points?rooms=1,2&priceMin=50000&priceMax=150000&displayCurrency=USD",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "estate",
+                "map-points"
+              ],
+              "query": [
+                {
+                  "key": "rooms",
+                  "value": "1,2",
+                  "description": "Через запятую: 1,2,3,4,5 (5 = 5+)"
+                },
+                {
+                  "key": "priceMin",
+                  "value": "50000"
+                },
+                {
+                  "key": "priceMax",
+                  "value": "150000"
+                },
+                {
+                  "key": "displayCurrency",
+                  "value": "USD",
+                  "description": "Валюта отображения: USD/BYN/EUR или 840/933/978. По умолчанию USD. НЕ фильтр — priceMin/priceMax в этой валюте."
+                },
+                {
+                  "key": "areaMin",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "areaMax",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "districts",
+                  "value": "",
+                  "description": "Через запятую: Центральный,Советский",
+                  "disabled": true
+                },
+                {
+                  "key": "metroTimeMax",
+                  "value": "",
+                  "description": "Минут пешком",
+                  "disabled": true
+                },
+                {
+                  "key": "ownerOnly",
+                  "value": "",
+                  "description": "true/false",
+                  "disabled": true
+                },
+                {
+                  "key": "notFirstOrLast",
+                  "value": "",
+                  "description": "true/false",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "description": "Поиск по адресу или станции метро (ILIKE %q%)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Лёгкий эндпоинт для карты. Возвращает { id, lat, lng, price, priceCurrency, originalPrice, originalCurrency, rooms }. `price` уже в `displayCurrency`, оригинал доступен через `originalPrice`. Фильтры — те же, что у /search, массивы через запятую."
+          }
+        },
+        {
+          "name": "Estate by id (detail)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/estate/1?displayCurrency=USD",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "estate",
+                "1"
+              ],
+              "query": [
+                {
+                  "key": "displayCurrency",
+                  "value": "USD",
+                  "description": "USD/BYN/EUR или 840/933/978"
+                }
+              ]
+            },
+            "description": "Деталка одного объекта по id. Возвращает полный EstateEntity + `price`/`pricePerM2` в выбранной валюте, `originalPrice`/`originalCurrency`, а также `priceHistory` (массив точек в usd/byn/eur, включая текущую цену как последнюю точку) и `priceChange` (deltaUsd/deltaByn/deltaEur/deltaPct/changes) — null если история пуста. 404 если не найден."
+          },
+          "response": [
+            {
+              "name": "Estate with price history",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/estate/1?displayCurrency=USD",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "estate",
+                    "1"
+                  ],
+                  "query": [
+                    {
+                      "key": "displayCurrency",
+                      "value": "USD",
+                      "description": "USD/BYN/EUR или 840/933/978"
+                    }
+                  ]
+                },
+                "description": "Деталка одного объекта по id. Возвращает полный EstateEntity + `price`/`pricePerM2` в выбранной валюте, `originalPrice`/`originalCurrency`, а также `priceHistory` (массив точек в usd/byn/eur, включая текущую цену как последнюю точку) и `priceChange` (deltaUsd/deltaByn/deltaEur/deltaPct/changes) — null если история пуста. 404 если не найден."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 1,\n  \"price\": 231642,\n  \"pricePerM2\": 6525,\n  \"displayCurrency\": 933,\n  \"originalPrice\": 77000,\n  \"originalCurrency\": 840,\n  \"priceHistory\": [\n    {\n      \"date\": \"2026-08-18T10:00:00.000Z\",\n      \"usd\": 81321,\n      \"byn\": 265912,\n      \"eur\": 74200\n    },\n    {\n      \"date\": \"2026-09-01T10:00:00.000Z\",\n      \"usd\": 77000,\n      \"byn\": 231489,\n      \"eur\": 66287\n    },\n    {\n      \"date\": \"2026-09-14T10:00:00.000Z\",\n      \"usd\": 77050,\n      \"byn\": 231642,\n      \"eur\": 66300\n    }\n  ],\n  \"priceChange\": {\n    \"deltaUsd\": -4271,\n    \"deltaByn\": -34270,\n    \"deltaEur\": -7900,\n    \"deltaPctUsd\": -5.3,\n    \"deltaPctByn\": -12.9,\n    \"deltaPctEur\": -10.6,\n    \"changes\": 2\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "House (apartments at bbox)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/estate/house?minLat=53.9020&maxLat=53.9028&minLng=27.5610&maxLng=27.5622&displayCurrency=USD",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "estate",
+                "house"
+              ],
+              "query": [
+                {
+                  "key": "minLat",
+                  "value": "53.9020"
+                },
+                {
+                  "key": "maxLat",
+                  "value": "53.9028"
+                },
+                {
+                  "key": "minLng",
+                  "value": "27.5610"
+                },
+                {
+                  "key": "maxLng",
+                  "value": "27.5622"
+                },
+                {
+                  "key": "displayCurrency",
+                  "value": "USD"
+                }
+              ]
+            },
+            "description": "Список квартир в одном доме — bbox приходит от Mapbox-кластера с фронта (clusterProperties). Ширина bbox ограничена 0.002° по каждой оси; если больше — вернётся пустой список. Ответ: { items: EstateShort[] } с полями для карточки списка."
           }
         }
       ]

@@ -11,6 +11,8 @@ import { RefreshTokenEntity } from './auth/entities/refresh.entity.js';
 import { EmailVerificationTokenEntity } from './auth/entities/email-verification.entity.js';
 import { MailModule } from './mail/mail.module.js';
 import {PasswordResetTokenEntity} from "./auth/entities/password-reset.entity.js";
+import { CurrencyModule } from './currency/currency.module.js';
+import { CurrencyRateEntity } from './currency/entities/currency-rate.entity.js';
 
 @Module({
   imports: [
@@ -24,12 +26,13 @@ import {PasswordResetTokenEntity} from "./auth/entities/password-reset.entity.js
         username: config.get('DB_USER'),
         password: config.get('DB_PASSWORD'),
         database: config.get('DB_NAME'),
-        entities: [EstateEntity, UserEntity, RefreshTokenEntity, EmailVerificationTokenEntity, PasswordResetTokenEntity],
+        entities: [EstateEntity, UserEntity, RefreshTokenEntity, EmailVerificationTokenEntity, PasswordResetTokenEntity, CurrencyRateEntity],
         synchronize: true,
       }),
       inject: [ConfigService],
     }),
     MailModule,
+    CurrencyModule,
     EstateModule,
     ParserModule,
     UserModule,

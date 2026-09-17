@@ -8,14 +8,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json yarn.lock* package-lock.json* ./
-RUN if [ -f yarn.lock ]; then corepack enable && yarn install --frozen-lockfile; \
-    else npm ci; fi
+RUN npm ci --legacy-peer-deps
 
 COPY tsconfig*.json nest-cli.json ./
 COPY src ./src
 
 RUN npm run build \
-    && npm prune --omit=dev
+    && npm prune --omit=dev --legacy-peer-deps
 
 
 FROM node:22-slim AS runner

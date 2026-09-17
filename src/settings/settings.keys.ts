@@ -42,20 +42,6 @@ export const SETTINGS: SettingDefinition[] = [
     default: () => '15',
   },
   {
-    key: 'cron.parser.parseAll',
-    label: 'Крон: парсер realt.by',
-    kind: 'cron',
-    group: 'cron',
-    default: () => '0 6 * * *',
-  },
-  {
-    key: 'cron.parser.validate',
-    label: 'Крон: валидация фантомов',
-    kind: 'cron',
-    group: 'cron',
-    default: () => '0 8 * * *',
-  },
-  {
     key: 'cron.subscriptions.instant',
     label: 'Крон: instant-подписки',
     kind: 'cron',

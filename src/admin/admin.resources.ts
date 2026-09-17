@@ -5,7 +5,6 @@ import { EstateEntity } from '../estate/entities/estate.entity.js';
 import { FavoriteEntity } from '../favorite/entities/favorite.entity.js';
 import { SearchSubscriptionEntity } from '../search-subscription/entities/search-subscription.entity.js';
 import { AppSettingEntity } from '../settings/entities/app-setting.entity.js';
-import { ParserService } from '../parser/parser.service.js';
 import { SubscriptionCheckService } from '../search-subscription/subscription-check.service.js';
 import { CurrencyRatesService } from '../currency/currency-rates.service.js';
 import { EstateService } from '../estate/estate.service.js';
@@ -13,7 +12,6 @@ import { SettingsService } from '../settings/settings.service.js';
 import { SETTINGS_BY_KEY } from '../settings/settings.keys.js';
 
 export interface AdminDeps {
-  parser: ParserService;
   subscriptions: SubscriptionCheckService;
   currency: CurrencyRatesService;
   estates: EstateService;
@@ -81,8 +79,6 @@ export function buildResources(deps: AdminDeps): ResourceWithOptions[] {
         filterProperties: ['isActive', 'rooms', 'townName', 'districtName', 'publishedAt'],
         actions: {
           new: { isAccessible: false },
-          parserRun: jobAction('Запустить парсер realt.by', 'Play', () => deps.parser.parseAll()),
-          parserValidate: jobAction('Валидация активных объявлений', 'CheckSquare', () => deps.parser.validateActiveListings()),
           currencyRefresh: jobAction('Обновить курсы + пересчёт цен', 'DollarSign', async () => {
             await deps.currency.fetchAndSaveFromNbrb();
             await deps.estates.recomputePrices();

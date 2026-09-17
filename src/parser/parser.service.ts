@@ -2,9 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EstateEntity } from '../estate/entities/estate.entity.js';
-import {HEADERS} from "./const/headers.js";
-import {ApiInfo} from "./const/api-info.js";
-import { getHttpClient } from './utils/http-client.js';
 import {
     CurrencyRatesService,
     CURRENCY_USD,
@@ -26,64 +23,14 @@ export class ParserService {
     private readonly districts: DistrictService,
   ) {}
 
-  async parseAll(): Promise<void> {
-    let page = 1;
-    let totalPages = 1;
-    let saved = 0;
-
-    // Берём актуальные курсы один раз на весь запуск — реалистично, что
-    // за 5-10 минут парсинга курс не меняется, а fetchAndSaveFromNbrb уже
-    // прокрутил cron в 05:15.
+  async ingestBatch(rawItems: any[], isFullDump: boolean): Promise<{ received: number }> {
     const rates = await this.currencyRates.getLatest();
-
-    do {
-      this.logger.log(`Страница ${page} / ${totalPages}...`);
-
-      const items = await this.fetchPage(page);
-      if (!items || items.length === 0) break;
-
-      await this.upsertMany(items, rates);
-      saved += items.length;
-
-      if (page === 1) {
-        const firstResponse = await this.fetchRaw(1);
-        totalPages = Math.ceil(
-          firstResponse.pagination.totalCount / ApiInfo.PAGE_SIZE,
-        );
-      }
-
-      page++;
-    } while (page <= totalPages);
-
-    await this.markInactive();
-    this.logger.log(`Готово. Обработано ${saved} объявлений.`);
-  }
-
-  private async fetchPage(page: number): Promise<any[]> {
-    const res = await this.fetchRaw(page);
-    return res?.results ?? [];
-  }
-
-  private async fetchRaw(page: number) {
-    const response = await getHttpClient().post(
-        ApiInfo.API_URL,
-      {
-        operationName: 'searchObjectsV2',
-        variables: {
-          data: {
-            where: {
-              categories: [ApiInfo.FLATS_CATEGORY],
-              address: { townUuids: [ApiInfo.MINSK_TOWN_UUID] },
-            },
-            pagination: { page, pageSize: ApiInfo.PAGE_SIZE },
-          },
-        },
-        query: ApiInfo.SEARCH_QUERY,
-      },
-      { headers: HEADERS, timeout: 15000 },
-    );
-
-    return response.data?.data?.searchObjectsV2?.body;
+    await this.upsertMany(rawItems, rates);
+    if (isFullDump) {
+      await this.markInactive();
+    }
+    this.logger.log(`Ingest: ${rawItems.length} items (fullDump=${isFullDump})`);
+    return { received: rawItems.length };
   }
 
   private async upsertMany(rawItems: any[], rates: CurrencyRateEntity): Promise<void> {
@@ -95,7 +42,6 @@ export class ParserService {
       });
 
       if (existing) {
-        // Фиксируем изменение цены в историю
         if (existing.price !== entity.price && entity.price !== null) {
           entity.priceHistory = [
             ...existing.priceHistory,
@@ -111,58 +57,8 @@ export class ParserService {
 
         await this.estateRepo.update(existing.id, entity);
       } else {
-        // Защита от «призраков» — объявлений, которых нет на сайте,
-        // но searchObjectsV2 продолжает их возвращать.
-        if (!(await this.isSourceUrlAlive(entity.sourceUrl))) {
-          this.logger.debug(`Пропускаем фантом: ${entity.sourceUrl}`);
-          continue;
-        }
         await this.estateRepo.save(entity);
       }
-    }
-  }
-
-  // Ежедневная валидация: HEAD-проверка всех активных объявлений батчами по 20.
-  // Деактивирует те, у кого sourceUrl возвращает 404.
-  async validateActiveListings(): Promise<void> {
-    const BATCH = 20;
-    let offset = 0;
-    let deactivated = 0;
-
-    while (true) {
-      const listings = await this.estateRepo.find({
-        where: { isActive: true },
-        select: { id: true, sourceUrl: true },
-        skip: offset,
-        take: BATCH,
-      });
-
-      if (listings.length === 0) break;
-
-      await Promise.all(
-        listings.map(async (l) => {
-          if (await this.isSourceUrlAlive(l.sourceUrl)) return;
-          await this.estateRepo.update(l.id, { isActive: false });
-          deactivated++;
-        }),
-      );
-
-      offset += BATCH;
-    }
-
-    this.logger.log(`Валидация завершена. Деактивировано: ${deactivated}`);
-  }
-
-  // HEAD-проверка sourceUrl. Возвращает false только при явном 404 — сетевые
-  // ошибки считаем «живым», чтобы не удалять хорошие объявления из-за флапа.
-  private async isSourceUrlAlive(url: string | null | undefined): Promise<boolean> {
-    if (!url) return true;
-    try {
-      await getHttpClient().head(url, { timeout: 5000, maxRedirects: 3 });
-      return true;
-    } catch (err: any) {
-      if (err.response?.status === 404) return false;
-      return true;
     }
   }
 
@@ -180,10 +76,6 @@ export class ParserService {
     const perM2Byn = this.currencyRates.convert(pricePerM2, priceCurrency, CURRENCY_BYN, rates);
     const perM2Eur = this.currencyRates.convert(pricePerM2, priceCurrency, CURRENCY_EUR, rates);
 
-    // realt.by отдаёт `code` неконсистентно: у части объявлений это числовой
-    // ID (4106745), у части — короткий буквенный (SITEIXQMS76E). В entity
-    // sourceCode типа int, поэтому строка туда не сохраняется. Числовой
-    // URL смотрится «нормально», fallback — на unid.
     const numericCode =
       typeof r.code === 'number' && Number.isFinite(r.code)
         ? r.code
@@ -222,9 +114,6 @@ export class ParserService {
       repairState: r.repairState ?? null,
       address: r.address ?? null,
       townName: r.townName ?? null,
-      // realt.by отдаёт stateDistrictName = район области ("Минский район"),
-      // а не городской район Минска. Городской район считаем сами по (lat, lng)
-      // через GeoJSON-границы OSM — это то, чем фильтруется фронт.
       districtName: this.districts.resolveByCoords(lat, lng),
       lat: lat ?? null,
       lng: lng ?? null,
@@ -242,7 +131,6 @@ export class ParserService {
     };
   }
 
-  // Помечаем снятые объявления — те что не обновлялись больше 2 суток
   private async markInactive(): Promise<void> {
     const cutoff = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
 

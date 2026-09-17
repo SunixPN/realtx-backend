@@ -10,13 +10,11 @@ import { FavoriteEntity } from '../favorite/entities/favorite.entity.js';
 import { SearchSubscriptionEntity } from '../search-subscription/entities/search-subscription.entity.js';
 import { AppSettingEntity } from '../settings/entities/app-setting.entity.js';
 
-import { ParserModule } from '../parser/parser.module.js';
 import { SearchSubscriptionModule } from '../search-subscription/search-subscription.module.js';
 import { CurrencyModule } from '../currency/currency.module.js';
 import { EstateModule } from '../estate/estate.module.js';
 import { SettingsModule } from '../settings/settings.module.js';
 
-import { ParserService } from '../parser/parser.service.js';
 import { SubscriptionCheckService } from '../search-subscription/subscription-check.service.js';
 import { CurrencyRatesService } from '../currency/currency-rates.service.js';
 import { EstateService } from '../estate/estate.service.js';
@@ -43,17 +41,15 @@ const registerAdminJsAdapter = async (dataSource: DataSource) => {
 @Module({
   imports: [
     TypeOrmModule.forFeature([UserEntity]),
-    ParserModule,
     SearchSubscriptionModule,
     CurrencyModule,
     EstateModule,
     SettingsModule,
     ConfigModule,
     AdminJSNestModule.createAdminAsync({
-      imports: [ParserModule, SearchSubscriptionModule, CurrencyModule, EstateModule, SettingsModule, ConfigModule],
+      imports: [SearchSubscriptionModule, CurrencyModule, EstateModule, SettingsModule, ConfigModule],
       inject: [
         getDataSourceToken(),
-        ParserService,
         SubscriptionCheckService,
         CurrencyRatesService,
         EstateService,
@@ -62,7 +58,6 @@ const registerAdminJsAdapter = async (dataSource: DataSource) => {
       ],
       useFactory: async (
         dataSource: DataSource,
-        parser: ParserService,
         subscriptions: SubscriptionCheckService,
         currency: CurrencyRatesService,
         estates: EstateService,
@@ -72,7 +67,7 @@ const registerAdminJsAdapter = async (dataSource: DataSource) => {
         await registerAdminJsAdapter(dataSource);
 
         const rootPath = '/admin';
-        const resources = buildResources({ parser, subscriptions, currency, estates, settings });
+        const resources = buildResources({ subscriptions, currency, estates, settings });
 
         return {
           adminJsOptions: {

@@ -15,6 +15,7 @@ import { RefreshTokenEntity } from './entities/refresh.entity.js';
 import { RegisterDto } from './dto/register-dto.js';
 import { LoginDto } from './dto/login-dto.js';
 import { EmailVerificationService } from './email-verification.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -41,6 +42,7 @@ export class AuthService {
     private readonly emailVerificationService: EmailVerificationService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
+    private readonly settings: SettingsService,
   ) {}
 
   async register(dto: RegisterDto, ctx: SessionContext = {}): Promise<AuthResult> {
@@ -94,10 +96,10 @@ export class AuthService {
       if (!user.emailVerified) patch.emailVerified = true;
       if (!user.name && googleName) patch.name = googleName;
       await this.userRepo.update(user.id, patch);
-      user = { ...user, ...patch };
+      Object.assign(user, patch);
     }
 
-    return this.issueTokens(user, ctx);
+    return this.issueTokens(user!, ctx);
   }
 
   /**
@@ -175,7 +177,7 @@ export class AuthService {
 
     const record = await this.refreshRepo.findOne({
       where: { tokenHash },
-      relations: { user: true },
+      relations: { user: true } as any,
     });
 
     if (!record) {
@@ -253,14 +255,14 @@ export class AuthService {
       { sub: user.id },
       {
         secret: this.config.get('JWT_ACCESS_SECRET'),
-        expiresIn: this.config.get('JWT_ACCESS_TTL') ?? '15m',
+        expiresIn: this.settings.get('jwt.accessTtl') as any,
       },
     );
 
     const refreshToken = crypto.randomBytes(64).toString('hex');
     const tokenHash = this.hashToken(refreshToken);
 
-    const days = Number(this.config.get('JWT_REFRESH_TTL_DAYS') ?? 30);
+    const days = this.settings.getNumber('jwt.refreshTtlDays');
     const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
     await this.refreshRepo.save(

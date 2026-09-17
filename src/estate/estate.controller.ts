@@ -7,15 +7,18 @@ import { HouseEstatesDto } from "./dto/house-estates.dto.js";
 import { SuggestDto } from "./dto/suggest.dto.js";
 import { DistrictProfitabilityDto } from "./dto/district-profitability.dto.js";
 import { Public } from "../auth/decorators/public.decorator.js";
+import { OptionalAuth } from "../auth/decorators/optional-auth.decorator.js";
+import { CurrentUser } from "../auth/decorators/current-user.decorator.js";
+import type { UserEntity } from "../user/entities/user.entity.js";
 
 @Controller('estate')
 export class EstateController {
     constructor(private readonly estateService: EstateService) {}
 
-    @Public()
+    @OptionalAuth()
     @Post('search')
-    search(@Body() dto: FilterEstatesDto) {
-        return this.estateService.getAnyEstates(dto);
+    search(@Body() dto: FilterEstatesDto, @CurrentUser() user: UserEntity | null) {
+        return this.estateService.getAnyEstates(dto, user?.id);
     }
 
     // Подсказки для строки поиска: метро + адреса. Метро приоритетнее.
@@ -45,15 +48,19 @@ export class EstateController {
 
     // «Квартиры в одном доме» — bbox из cluster'а Mapbox с фронта.
     // Держим ДО ':id', чтобы 'house' не был перехвачен параметром id.
-    @Public()
+    @OptionalAuth()
     @Get('house')
-    house(@Query() dto: HouseEstatesDto) {
-        return this.estateService.getHouseEstates(dto);
+    house(@Query() dto: HouseEstatesDto, @CurrentUser() user: UserEntity | null) {
+        return this.estateService.getHouseEstates(dto, user?.id);
     }
 
-    @Public()
+    @OptionalAuth()
     @Get(':id')
-    getById(@Param('id', ParseIntPipe) id: number, @Query() dto: GetEstateDto) {
-        return this.estateService.getById(id, dto);
+    getById(
+        @Param('id', ParseIntPipe) id: number,
+        @Query() dto: GetEstateDto,
+        @CurrentUser() user: UserEntity | null,
+    ) {
+        return this.estateService.getById(id, dto, user?.id);
     }
 }

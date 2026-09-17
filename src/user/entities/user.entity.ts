@@ -1,4 +1,5 @@
 import {
+  BaseEntity,
   Column,
   CreateDateColumn,
   Entity,
@@ -14,7 +15,7 @@ export type UserTheme = 'light' | 'dark' | 'system';
 export type UserLanguage = 'ru' | 'en' | 'be';
 
 @Entity('users')
-export class UserEntity {
+export class UserEntity extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

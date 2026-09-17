@@ -757,8 +757,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/estate/district-profitability?displayCurrency=USD",
-              "host": ["{{baseUrl}}"],
-              "path": ["estate", "district-profitability"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "estate",
+                "district-profitability"
+              ],
               "query": [
                 {
                   "key": "displayCurrency",
@@ -856,8 +861,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/estate/districts-geojson",
-              "host": ["{{baseUrl}}"],
-              "path": ["estate", "districts-geojson"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "estate",
+                "districts-geojson"
+              ]
             },
             "description": "GeoJSON всех 9 районов Минска с добавленным полем `centroid: { lng, lat }` в properties каждой фичи. Используется как источник для Mapbox fill/line layers тепловой карты. Результат не зависит от фильтров и кешируется в памяти сервиса."
           }
@@ -900,6 +910,296 @@
               ]
             },
             "description": "Список квартир в одном доме — bbox приходит от Mapbox-кластера с фронта (clusterProperties). Ширина bbox ограничена 0.002° по каждой оси; если больше — вернётся пустой список. Ответ: { items: EstateShort[] } с полями для карточки списка."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Favorites",
+      "item": [
+        {
+          "name": "GET /favorites/ids",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/favorites/ids",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "favorites",
+                "ids"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /favorites",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/favorites?sort=recent&displayCurrency=USD",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "favorites"
+              ],
+              "query": [
+                {
+                  "key": "sort",
+                  "value": "recent",
+                  "description": "recent | price-drop | price-asc"
+                },
+                {
+                  "key": "displayCurrency",
+                  "value": "USD",
+                  "description": "USD | BYN | EUR"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /favorites/:estateId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/favorites/12345",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "favorites",
+                "12345"
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /favorites/:estateId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/favorites/12345",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "favorites",
+                "12345"
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /favorites/bulk",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/favorites/bulk",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "favorites",
+                "bulk"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\n    12345,\n    67890\n  ]\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search Subscriptions",
+      "item": [
+        {
+          "name": "GET /search-subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/search-subscriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search-subscriptions"
+              ]
+            },
+            "description": "Список подписок текущего пользователя. Каждый элемент содержит name, filters (JSONB), summary, chips, total (сколько сейчас подходит), fresh, frequency, triggers, channels, quietHours, paused, lastCheckedAt."
+          }
+        },
+        {
+          "name": "POST /search-subscriptions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/search-subscriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search-subscriptions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"1–2 комнаты у метро в центре\",\n  \"filters\": {\n    \"rooms\": [1, 2],\n    \"priceMax\": 120000,\n    \"displayCurrency\": 840,\n    \"metroTimeMax\": 10,\n    \"districts\": [\"Центральный\"]\n  },\n  \"frequency\": \"instant\",\n  \"triggers\": [\"new\", \"price-down\"],\n  \"channels\": [\"email\"],\n  \"quietHours\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /search-subscriptions/:id",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/search-subscriptions/{{subscriptionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search-subscriptions",
+                "{{subscriptionId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Новое имя\",\n  \"frequency\": \"daily\"\n}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /search-subscriptions/:id/pause",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/search-subscriptions/{{subscriptionId}}/pause",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search-subscriptions",
+                "{{subscriptionId}}",
+                "pause"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paused\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /search-subscriptions/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/search-subscriptions/{{subscriptionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search-subscriptions",
+                "{{subscriptionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /search-subscriptions/run-check (public, admin todo)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/search-subscriptions/run-check",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search-subscriptions",
+                "run-check"
+              ]
+            }
           }
         }
       ]

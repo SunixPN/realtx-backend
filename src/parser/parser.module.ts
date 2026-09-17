@@ -16,6 +16,6 @@ import { CurrencyModule } from '../currency/currency.module.js';
   ],
   controllers: [ParserController],
   providers: [ParserService, ParserScheduler, DistrictService],
-  exports: [DistrictService],
+  exports: [DistrictService, ParserService],
 })
 export class ParserModule {}

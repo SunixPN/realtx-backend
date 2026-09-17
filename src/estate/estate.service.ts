@@ -3,8 +3,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { EstateEntity } from "./entities/estate.entity.js";
+import { FavoriteEntity } from '../favorite/entities/favorite.entity.js';
 import { EstateFilterBaseDto } from "./dto/estate-filter-base.dto.js";
 import { FilterEstatesDto } from "./dto/filter-estates.dto.js";
 import { MapPointFilterDto } from "./dto/map-point-filter.dto.js";
@@ -53,8 +54,16 @@ export class EstateService {
     constructor(
         @InjectRepository(EstateEntity)
         private readonly estateRepo: Repository<EstateEntity>,
+        @InjectRepository(FavoriteEntity)
+        private readonly favoriteRepo: Repository<FavoriteEntity>,
         private readonly currencyRates: CurrencyRatesService,
     ) {}
+
+    private async buildFavoriteSet(userId: string | undefined, estateIds: number[]): Promise<Set<number>> {
+        if (!userId || estateIds.length === 0) return new Set();
+        const rows = await this.favoriteRepo.findBy({ userId, estateId: In(estateIds) });
+        return new Set(rows.map(r => r.estateId));
+    }
 
     private resolveCurrency(dto: EstateFilterBaseDto): ConvertibleCurrency {
         const c = dto.displayCurrency ?? CURRENCY_USD;
@@ -192,7 +201,7 @@ export class EstateService {
         };
     }
 
-    async getAnyEstates(dto: FilterEstatesDto) {
+    async getAnyEstates(dto: FilterEstatesDto, userId?: string) {
         const currency = this.resolveCurrency(dto);
         const qb = this.estateRepo.createQueryBuilder('e');
         this.applyFilters(qb, dto);
@@ -205,7 +214,69 @@ export class EstateService {
             .skip((dto.page! - 1) * dto.limit!)
             .take(dto.limit!);
         const [items, total] = await qb.getManyAndCount();
-        return { total, page: dto.page, limit: dto.limit, currency, estates: this.projectByCurrency(items, currency) };
+        const projected = this.projectByCurrency(items, currency);
+        const favSet = await this.buildFavoriteSet(userId, items.map(e => e.id));
+        return {
+            total, page: dto.page, limit: dto.limit, currency,
+            estates: projected.map(e => ({ ...e, isFavorite: favSet.has(e.id) })),
+        };
+    }
+
+    /**
+     * Быстрый счётчик подходящих под фильтры активных объектов. Используется
+     * для карточек подписок (сколько сейчас в выборке).
+     */
+    async countByFilters(dto: EstateFilterBaseDto): Promise<number> {
+        const qb = this.estateRepo.createQueryBuilder('e');
+        this.applyFilters(qb, dto);
+        return qb.getCount();
+    }
+
+    /**
+     * Возвращает объекты, подходящие под фильтры и появившиеся/подешевевшие
+     * после `since`. Используется планировщиком подписок для формирования
+     * дайджеста. `triggers` определяет что искать:
+     *   - 'new'        → e.createdAt > since (объект впервые попал в базу)
+     *   - 'price-down' → e.priceChangeDate > since AND e.priceChangeDirection = -1
+     */
+    async findMatchingSince(
+        dto: EstateFilterBaseDto,
+        since: Date,
+        triggers: Array<'new' | 'price-down'>,
+        limit: number,
+    ): Promise<{ id: number; address: string | null; rooms: number | null; areaTotal: number | null; priceUsd: number | null; priceByn: number | null; priceEur: number | null; districtName: string | null; metroStation: string | null; metroTime: number | null; photos: string[]; trigger: 'new' | 'price-down' }[]> {
+        if (triggers.length === 0) return [];
+        const currency = this.resolveCurrency(dto);
+        const priceCol = PRICE_COL_BY_CURRENCY[currency];
+        const qb = this.estateRepo.createQueryBuilder('e');
+        this.applyFilters(qb, dto);
+
+        const conds: string[] = [];
+        if (triggers.includes('new')) conds.push('e.createdAt > :since');
+        if (triggers.includes('price-down')) conds.push('(e.priceChangeDate > :since AND e.priceChangeDirection = -1)');
+        qb.andWhere(`(${conds.join(' OR ')})`, { since });
+
+        qb.orderBy(`e.${priceCol}`, 'ASC').take(limit);
+        const rows = await qb.getMany();
+
+        return rows.map(e => {
+            const isPriceDown = e.priceChangeDate && e.priceChangeDate > since && e.priceChangeDirection === -1;
+            const trigger: 'new' | 'price-down' = isPriceDown && triggers.includes('price-down') ? 'price-down' : 'new';
+            return {
+                id: e.id,
+                address: e.address,
+                rooms: e.rooms,
+                areaTotal: e.areaTotal,
+                priceUsd: e.priceUsd,
+                priceByn: e.priceByn,
+                priceEur: e.priceEur,
+                districtName: e.districtName,
+                metroStation: e.metroStation,
+                metroTime: e.metroTime,
+                photos: e.photos ?? [],
+                trigger,
+            };
+        });
     }
 
     async getMapPoints(dto: MapPointFilterDto) {
@@ -229,7 +300,7 @@ export class EstateService {
         }));
     }
 
-    async getById(id: number, dto: GetEstateDto) {
+    async getById(id: number, dto: GetEstateDto, userId?: string) {
         const entity = await this.estateRepo.findOne({ where: { id } });
         if (!entity) throw new NotFoundException(`Estate ${id} not found`);
         const currency = this.resolveCurrency(dto);
@@ -237,7 +308,10 @@ export class EstateService {
         const base = this.projectByCurrency([entity], currency)[0];
         const priceHistory = this.buildPriceHistoryPoints(entity, rates);
         const priceChange = this.buildPriceChange(priceHistory, entity.priceHistory.length);
-        return { ...base, priceHistory, priceChange };
+        const isFavorite = userId
+            ? await this.favoriteRepo.existsBy({ userId, estateId: id })
+            : false;
+        return { ...base, priceHistory, priceChange, isFavorite };
     }
 
     /**
@@ -246,7 +320,7 @@ export class EstateService {
      */
     private static readonly MAX_HOUSE_SPAN_DEG = 0.002;
 
-    async getHouseEstates(dto: HouseEstatesDto) {
+    async getHouseEstates(dto: HouseEstatesDto, userId?: string) {
         const spanLat = dto.maxLat - dto.minLat;
         const spanLng = dto.maxLng - dto.minLng;
         const max = EstateService.MAX_HOUSE_SPAN_DEG;
@@ -266,6 +340,7 @@ export class EstateService {
             .orderBy('e.rooms', 'ASC')
             .addOrderBy('e.areaTotal', 'ASC')
             .getMany();
+        const favSet = await this.buildFavoriteSet(userId, items.map(e => e.id));
         return {
             items: items.map((e) => ({
                 id: e.id,
@@ -283,6 +358,7 @@ export class EstateService {
                 metroTime: e.metroTime,
                 photo: e.photos?.[0] ?? null,
                 sellerType: e.sellerType,
+                isFavorite: favSet.has(e.id),
             })),
         };
     }

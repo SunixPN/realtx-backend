@@ -16,6 +16,7 @@ import { GoogleLoginDto } from './dto/google-login-dto.js';
 import { Public } from './decorators/public.decorator.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import { UserEntity } from '../user/entities/user.entity.js';
+import { SettingsService } from '../settings/settings.service.js';
 
 @Controller('auth')
 export class AuthController {
@@ -25,6 +26,7 @@ export class AuthController {
     private readonly passwordResetService: PasswordResetService,
     private readonly firebaseAdmin: FirebaseAdminService,
     private readonly config: ConfigService,
+    private readonly settings: SettingsService,
   ) {}
 
   @Public()
@@ -266,7 +268,7 @@ export class AuthController {
   }
 
   private setRefreshCookie(res: Response, token: string): void {
-    const days = Number(this.config.get('JWT_REFRESH_TTL_DAYS') ?? 30);
+    const days = this.settings.getNumber('jwt.refreshTtlDays');
     const secure = this.config.get('COOKIE_SECURE') === 'true';
 
     res.cookie('refresh_token', token, {

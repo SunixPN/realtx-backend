@@ -12,8 +12,7 @@ import * as crypto from 'node:crypto';
 import { UserEntity } from '../user/entities/user.entity.js';
 import { MailService } from '../mail/mail.service.js';
 import { EmailVerificationTokenEntity } from './entities/email-verification.entity.js';
-
-const TOKEN_TTL_MINUTES = 15;
+import { SettingsService } from '../settings/settings.service.js';
 
 @Injectable()
 export class EmailVerificationService {
@@ -28,7 +27,12 @@ export class EmailVerificationService {
 
     private readonly mailService: MailService,
     private readonly config: ConfigService,
+    private readonly settings: SettingsService,
   ) {}
+
+  private get ttlMinutes(): number {
+    return this.settings.getNumber('auth.emailVerificationTtlMinutes');
+  }
 
   // Отправить письмо с подтверждением. Удаляет предыдущие токены юзера.
   async sendVerificationEmail(user: UserEntity): Promise<void> {
@@ -49,7 +53,7 @@ export class EmailVerificationService {
       this.tokenRepo.create({
         userId: user.id,
         tokenHash,
-        expiresAt: new Date(Date.now() + TOKEN_TTL_MINUTES * 60 * 1000),
+        expiresAt: new Date(Date.now() + this.ttlMinutes * 60 * 1000),
       }),
     );
 
@@ -75,7 +79,7 @@ export class EmailVerificationService {
 
     const record = await this.tokenRepo.findOne({
       where: { tokenHash },
-      relations: { user: true },
+      relations: { user: true } as any,
     });
 
     if (!record) {
@@ -109,7 +113,7 @@ export class EmailVerificationService {
           Или скопируйте ссылку в браузер:<br>
           <a href="${link}" style="color: #666;">${link}</a>
         </p>
-        <p style="color: #666; font-size: 14px;">Ссылка действительна ${TOKEN_TTL_MINUTES} минут.</p>
+        <p style="color: #666; font-size: 14px;">Ссылка действительна ${this.ttlMinutes} минут.</p>
         <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;">
         <p style="color: #999; font-size: 13px;">
           Если вы не регистрировались в RealtX — просто проигнорируйте это письмо.

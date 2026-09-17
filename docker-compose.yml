@@ -2,16 +2,36 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: realtX_db
+    container_name: realtx_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: realtX
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: root
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: realtx_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+    ports:
+      - "3000:3000"
 
 volumes:
   postgres_data:

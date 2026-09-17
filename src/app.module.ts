@@ -13,6 +13,13 @@ import { MailModule } from './mail/mail.module.js';
 import {PasswordResetTokenEntity} from "./auth/entities/password-reset.entity.js";
 import { CurrencyModule } from './currency/currency.module.js';
 import { CurrencyRateEntity } from './currency/entities/currency-rate.entity.js';
+import { FavoriteModule } from './favorite/favorite.module.js';
+import { FavoriteEntity } from './favorite/entities/favorite.entity.js';
+import { SearchSubscriptionModule } from './search-subscription/search-subscription.module.js';
+import { SearchSubscriptionEntity } from './search-subscription/entities/search-subscription.entity.js';
+import { SettingsModule } from './settings/settings.module.js';
+import { AppSettingEntity } from './settings/entities/app-setting.entity.js';
+import { AdminPanelModule } from './admin/admin.module.js';
 
 @Module({
   imports: [
@@ -26,17 +33,23 @@ import { CurrencyRateEntity } from './currency/entities/currency-rate.entity.js'
         username: config.get('DB_USER'),
         password: config.get('DB_PASSWORD'),
         database: config.get('DB_NAME'),
-        entities: [EstateEntity, UserEntity, RefreshTokenEntity, EmailVerificationTokenEntity, PasswordResetTokenEntity, CurrencyRateEntity],
-        synchronize: true,
+        entities: [EstateEntity, UserEntity, RefreshTokenEntity, EmailVerificationTokenEntity, PasswordResetTokenEntity, CurrencyRateEntity, FavoriteEntity, SearchSubscriptionEntity, AppSettingEntity],
+        migrations: ['dist/migrations/*.js'],
+        synchronize: config.get('DB_SYNC') === 'true',
+        migrationsRun: config.get('DB_MIGRATIONS_RUN') !== 'false',
       }),
       inject: [ConfigService],
     }),
+    SettingsModule,
     MailModule,
     CurrencyModule,
     EstateModule,
     ParserModule,
     UserModule,
     AuthModule,
+    FavoriteModule,
+    SearchSubscriptionModule,
+    AdminPanelModule,
   ],
   controllers: [],
   providers: [],

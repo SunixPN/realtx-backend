@@ -30,6 +30,8 @@ COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
 
+RUN mkdir -p /app/.adminjs && chown -R nodejs:nodejs /app
+
 USER nodejs
 
 EXPOSE 3000

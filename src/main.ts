@@ -13,8 +13,13 @@ async function bootstrap() {
   app.useBodyParser('json', { limit: '50mb' });
   app.useBodyParser('urlencoded', { limit: '50mb', extended: true });
 
+  const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3001,http://localhost:3002')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: [process.env.FRONTEND_URL ?? 'http://localhost:3001', 'http://localhost:3002'],
+    origin: corsOrigins,
     credentials: true,
   });
 

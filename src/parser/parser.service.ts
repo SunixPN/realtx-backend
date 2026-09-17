@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import axios from 'axios';
 import { EstateEntity } from '../estate/entities/estate.entity.js';
 import {HEADERS} from "./const/headers.js";
 import {ApiInfo} from "./const/api-info.js";
+import { getHttpClient } from './utils/http-client.js';
 import {
     CurrencyRatesService,
     CURRENCY_USD,
@@ -65,7 +65,7 @@ export class ParserService {
   }
 
   private async fetchRaw(page: number) {
-    const response = await axios.post(
+    const response = await getHttpClient().post(
         ApiInfo.API_URL,
       {
         operationName: 'searchObjectsV2',
@@ -158,7 +158,7 @@ export class ParserService {
   private async isSourceUrlAlive(url: string | null | undefined): Promise<boolean> {
     if (!url) return true;
     try {
-      await axios.head(url, { timeout: 5000, maxRedirects: 3 });
+      await getHttpClient().head(url, { timeout: 5000, maxRedirects: 3 });
       return true;
     } catch (err: any) {
       if (err.response?.status === 404) return false;

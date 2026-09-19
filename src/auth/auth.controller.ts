@@ -274,7 +274,7 @@ export class AuthController {
     res.cookie('refresh_token', token, {
       httpOnly: true,
       secure,
-      sameSite: 'strict',
+      sameSite: 'none',
       path: '/',
       maxAge: days * 24 * 60 * 60 * 1000,
     });

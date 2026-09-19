@@ -126,7 +126,7 @@ export class AuthController {
   ) {
     const token = req.cookies?.refresh_token as string | undefined;
     await this.authService.logout(token);
-    res.clearCookie('refresh_token', { path: '/' });
+    this.clearRefreshCookie(res);
   }
 
   // --- Управление сессиями ---
@@ -152,7 +152,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.authService.logoutAll(user.id);
-    res.clearCookie('refresh_token', { path: '/' });
+    this.clearRefreshCookie(res);
   }
 
   // --- Удаление аккаунта ---
@@ -164,7 +164,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.authService.deleteAccount(user.id);
-    res.clearCookie('refresh_token', { path: '/' });
+    this.clearRefreshCookie(res);
   }
 
   // --- Вход по номеру телефона (Firebase Phone Auth) ---
@@ -270,6 +270,7 @@ export class AuthController {
   private setRefreshCookie(res: Response, token: string): void {
     const days = this.settings.getNumber('jwt.refreshTtlDays');
     const secure = this.config.get('COOKIE_SECURE') === 'true';
+    const domain = this.config.get<string>('COOKIE_DOMAIN') || undefined;
 
     res.cookie('refresh_token', token, {
       httpOnly: true,
@@ -277,6 +278,15 @@ export class AuthController {
       sameSite: 'none',
       path: '/',
       maxAge: days * 24 * 60 * 60 * 1000,
+      ...(domain ? { domain } : {}),
+    });
+  }
+
+  private clearRefreshCookie(res: Response): void {
+    const domain = this.config.get<string>('COOKIE_DOMAIN') || undefined;
+    res.clearCookie('refresh_token', {
+      path: '/',
+      ...(domain ? { domain } : {}),
     });
   }
 }

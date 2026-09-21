@@ -1,6 +1,10 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { FavoriteEntity } from '../favorite/entities/favorite.entity.js';
+import { SearchSubscriptionEntity } from '../search-subscription/entities/search-subscription.entity.js';
 import { AuthService } from './auth.service.js';
 import { EmailVerificationService } from './email-verification.service.js';
 import { PasswordResetService } from './password-reset.service.js';
@@ -27,6 +31,10 @@ export class AuthController {
     private readonly firebaseAdmin: FirebaseAdminService,
     private readonly config: ConfigService,
     private readonly settings: SettingsService,
+    @InjectRepository(FavoriteEntity)
+    private readonly favoriteRepo: Repository<FavoriteEntity>,
+    @InjectRepository(SearchSubscriptionEntity)
+    private readonly subscriptionRepo: Repository<SearchSubscriptionEntity>,
   ) {}
 
   @Public()
@@ -71,9 +79,22 @@ export class AuthController {
   }
 
   @Get('me')
-  me(@CurrentUser() user: UserEntity) {
+  async me(@CurrentUser() user: UserEntity) {
     const { passwordHash: _p, refreshTokens: _r, ...safeUser } = user;
-    return safeUser;
+    const [favoritesCount, freshRow] = await Promise.all([
+      this.favoriteRepo.count({ where: { userId: user.id } }),
+      this.subscriptionRepo
+        .createQueryBuilder('s')
+        .select('COALESCE(SUM(s.fresh), 0)', 'sum')
+        .where('s.userId = :userId', { userId: user.id })
+        .andWhere('s.paused = false')
+        .getRawOne<{ sum: string }>(),
+    ]);
+    return {
+      ...safeUser,
+      favoritesCount,
+      subscriptionsFreshCount: Number(freshRow?.sum ?? 0),
+    };
   }
 
   // --- Верификация email ---

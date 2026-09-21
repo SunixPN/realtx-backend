@@ -292,11 +292,12 @@ export class AuthController {
     const days = this.settings.getNumber('jwt.refreshTtlDays');
     const secure = this.config.get('COOKIE_SECURE') === 'true';
     const domain = this.config.get<string>('COOKIE_DOMAIN') || undefined;
+    const sameSite: 'none' | 'lax' = secure ? 'none' : 'lax';
 
     res.cookie('refresh_token', token, {
       httpOnly: true,
       secure,
-      sameSite: 'none',
+      sameSite,
       path: '/',
       maxAge: days * 24 * 60 * 60 * 1000,
       ...(domain ? { domain } : {}),

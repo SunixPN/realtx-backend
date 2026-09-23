@@ -125,10 +125,18 @@ export class AuthController {
   ) {
     const oldToken = req.cookies?.refresh_token as string | undefined;
 
-    const result = await this.authService.refresh(oldToken!, {
-      userAgent: req.headers['user-agent'] ?? null,
-      ipAddress: req.ip ?? null,
-    });
+    let result;
+    try {
+      result = await this.authService.refresh(oldToken!, {
+        userAgent: req.headers['user-agent'] ?? null,
+        ipAddress: req.ip ?? null,
+      });
+    } catch (err) {
+      // Битый/протухший refresh — чистим куку, чтобы фронтовый proxy
+      // не крутил бесконечный редирект-луп на защищённых страницах.
+      this.clearRefreshCookie(res);
+      throw err;
+    }
 
     this.setRefreshCookie(res, result.refreshToken);
 

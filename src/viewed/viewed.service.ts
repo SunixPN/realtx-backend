@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Repository } from 'typeorm';
+import { In, LessThan, Repository } from 'typeorm';
 import { ViewedEntity } from './entities/viewed.entity.js';
+import { FavoriteEntity } from '../favorite/entities/favorite.entity.js';
 import { GetViewedDto } from './dto/get-viewed.dto.js';
 import {
     CurrencyRatesService,
@@ -31,6 +32,7 @@ const PER_M2_COL: Record<'USD' | 'BYN' | 'EUR', 'pricePerM2Usd' | 'pricePerM2Byn
 type ViewedItem = {
     id: number;
     viewedAt: string;
+    isFavorite: boolean;
     price: number | null;
     pricePerM2: number | null;
     priceCurrency: number;
@@ -56,6 +58,8 @@ export class ViewedService {
     constructor(
         @InjectRepository(ViewedEntity)
         private readonly viewedRepo: Repository<ViewedEntity>,
+        @InjectRepository(FavoriteEntity)
+        private readonly favoriteRepo: Repository<FavoriteEntity>,
         // Currency service инжектим для симметрии с FavoriteService — здесь пока
         // без дельт цен, но зарезервировано под будущее расширение.
         private readonly _currencyRates: CurrencyRatesService,
@@ -73,11 +77,21 @@ export class ViewedService {
             order: { viewedAt: 'DESC' },
         });
 
+        // isFavorite подставляем сразу в ответ, иначе фронт красит сердечко
+        // только после клиентского запроса /favorites/ids, и оно «догоняет»
+        // цвет после гидрации.
+        const ids = rows.map(v => v.estateId);
+        const favRows = ids.length
+            ? await this.favoriteRepo.findBy({ userId, estateId: In(ids) })
+            : [];
+        const favSet = new Set(favRows.map(f => f.estateId));
+
         return rows.map(v => {
             const e = v.estate;
             return {
                 id: e.id,
                 viewedAt: v.viewedAt.toISOString(),
+                isFavorite: favSet.has(e.id),
                 price: e[priceCol] as number | null,
                 pricePerM2: e[perM2Col] as number | null,
                 priceCurrency: currencyCode,

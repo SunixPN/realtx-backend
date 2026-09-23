@@ -74,7 +74,10 @@ export class ViewedService {
         const rows = await this.viewedRepo.find({
             where: { userId },
             relations: { estate: true } as any,
-            order: { viewedAt: 'DESC' },
+            // estateId — стабильный тайбрейкер: без него записи с одинаковым
+            // viewedAt (быстро подряд просмотренные) возвращаются в порядке
+            // heap-layout, и список «прыгает» между рефрешами.
+            order: { viewedAt: 'DESC', estateId: 'DESC' },
         });
 
         // isFavorite подставляем сразу в ответ, иначе фронт красит сердечко

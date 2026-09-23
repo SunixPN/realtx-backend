@@ -28,10 +28,10 @@ export class EstateController {
         return this.estateService.suggest(dto.q, dto.limit ?? 10);
     }
 
-    @Public()
+    @OptionalAuth()
     @Get('map-points')
-    mapPoints(@Query() dto: MapPointFilterDto) {
-        return this.estateService.getMapPoints(dto);
+    mapPoints(@Query() dto: MapPointFilterDto, @CurrentUser() user: UserEntity | null) {
+        return this.estateService.getMapPoints(dto, user?.id);
     }
 
     @Public()

@@ -6,6 +6,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { EstateEntity } from "./entities/estate.entity.js";
 import { FavoriteEntity } from '../favorite/entities/favorite.entity.js';
+import { ViewedEntity } from '../viewed/entities/viewed.entity.js';
+import { ViewedService } from '../viewed/viewed.service.js';
 import { EstateFilterBaseDto } from "./dto/estate-filter-base.dto.js";
 import { FilterEstatesDto } from "./dto/filter-estates.dto.js";
 import { MapPointFilterDto } from "./dto/map-point-filter.dto.js";
@@ -56,12 +58,21 @@ export class EstateService {
         private readonly estateRepo: Repository<EstateEntity>,
         @InjectRepository(FavoriteEntity)
         private readonly favoriteRepo: Repository<FavoriteEntity>,
+        @InjectRepository(ViewedEntity)
+        private readonly viewedRepo: Repository<ViewedEntity>,
         private readonly currencyRates: CurrencyRatesService,
+        private readonly viewedService: ViewedService,
     ) {}
 
     private async buildFavoriteSet(userId: string | undefined, estateIds: number[]): Promise<Set<number>> {
         if (!userId || estateIds.length === 0) return new Set();
         const rows = await this.favoriteRepo.findBy({ userId, estateId: In(estateIds) });
+        return new Set(rows.map(r => r.estateId));
+    }
+
+    private async buildViewedSet(userId: string | undefined, estateIds: number[]): Promise<Set<number>> {
+        if (!userId || estateIds.length === 0) return new Set();
+        const rows = await this.viewedRepo.findBy({ userId, estateId: In(estateIds) });
         return new Set(rows.map(r => r.estateId));
     }
 
@@ -215,10 +226,18 @@ export class EstateService {
             .take(dto.limit!);
         const [items, total] = await qb.getManyAndCount();
         const projected = this.projectByCurrency(items, currency);
-        const favSet = await this.buildFavoriteSet(userId, items.map(e => e.id));
+        const ids = items.map(e => e.id);
+        const [favSet, viewedSet] = await Promise.all([
+            this.buildFavoriteSet(userId, ids),
+            this.buildViewedSet(userId, ids),
+        ]);
         return {
             total, page: dto.page, limit: dto.limit, currency,
-            estates: projected.map(e => ({ ...e, isFavorite: favSet.has(e.id) })),
+            estates: projected.map(e => ({
+                ...e,
+                isFavorite: favSet.has(e.id),
+                isViewed: viewedSet.has(e.id),
+            })),
         };
     }
 
@@ -279,7 +298,7 @@ export class EstateService {
         });
     }
 
-    async getMapPoints(dto: MapPointFilterDto) {
+    async getMapPoints(dto: MapPointFilterDto, userId?: string) {
         const currency = this.resolveCurrency(dto);
         const priceCol = PRICE_COL_BY_CURRENCY[currency];
         const qb = this.estateRepo.createQueryBuilder('e')
@@ -288,6 +307,7 @@ export class EstateService {
             .andWhere('e.lng IS NOT NULL');
         this.applyFilters(qb, dto);
         const items = await qb.getMany();
+        const viewedSet = await this.buildViewedSet(userId, items.map(e => e.id));
         return items.map(e => ({
             id: e.id,
             lat: e.lat,
@@ -297,6 +317,7 @@ export class EstateService {
             originalPrice: e.price,
             originalCurrency: e.priceCurrency,
             rooms: e.rooms,
+            isViewed: viewedSet.has(e.id),
         }));
     }
 
@@ -308,10 +329,18 @@ export class EstateService {
         const base = this.projectByCurrency([entity], currency)[0];
         const priceHistory = this.buildPriceHistoryPoints(entity, rates);
         const priceChange = this.buildPriceChange(priceHistory, entity.priceHistory.length);
-        const isFavorite = userId
-            ? await this.favoriteRepo.existsBy({ userId, estateId: id })
-            : false;
-        return { ...base, priceHistory, priceChange, isFavorite };
+        const [isFavorite, isViewed] = userId
+            ? await Promise.all([
+                this.favoriteRepo.existsBy({ userId, estateId: id }),
+                this.viewedRepo.existsBy({ userId, estateId: id }),
+            ])
+            : [false, false];
+        // Логируем факт просмотра. Fire-and-forget: клиенту неважно, а промашка
+        // логгера не должна ломать выдачу карточки. Только для авторизованных.
+        if (userId) {
+            this.viewedService.logView(userId, id).catch(() => {});
+        }
+        return { ...base, priceHistory, priceChange, isFavorite, isViewed };
     }
 
     /**
@@ -340,7 +369,11 @@ export class EstateService {
             .orderBy('e.rooms', 'ASC')
             .addOrderBy('e.areaTotal', 'ASC')
             .getMany();
-        const favSet = await this.buildFavoriteSet(userId, items.map(e => e.id));
+        const ids = items.map(e => e.id);
+        const [favSet, viewedSet] = await Promise.all([
+            this.buildFavoriteSet(userId, ids),
+            this.buildViewedSet(userId, ids),
+        ]);
         return {
             items: items.map((e) => ({
                 id: e.id,
@@ -359,6 +392,7 @@ export class EstateService {
                 photo: e.photos?.[0] ?? null,
                 sellerType: e.sellerType,
                 isFavorite: favSet.has(e.id),
+                isViewed: viewedSet.has(e.id),
             })),
         };
     }

@@ -69,6 +69,20 @@ export const SETTINGS: SettingDefinition[] = [
     group: 'cron',
     default: () => '15 5 * * *',
   },
+  {
+    key: 'cron.viewed.cleanup',
+    label: 'Крон: очистка истории просмотров',
+    kind: 'cron',
+    group: 'cron',
+    default: (c) => c.get<string>('VIEWED_CLEANUP_CRON') ?? '0 3 * * *',
+  },
+  {
+    key: 'viewed.retentionDays',
+    label: 'История просмотров: срок хранения (дней)',
+    kind: 'number',
+    group: 'other',
+    default: (c) => String(c.get('VIEWED_RETENTION_DAYS') ?? 30),
+  },
 ];
 
 export const SETTINGS_BY_KEY = new Map(SETTINGS.map((s) => [s.key, s]));

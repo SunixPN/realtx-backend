@@ -1049,6 +1049,74 @@
       ]
     },
     {
+      "name": "Viewed history",
+      "item": [
+        {
+          "name": "GET /viewed/ids",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/viewed/ids",
+              "host": ["{{baseUrl}}"],
+              "path": ["viewed", "ids"]
+            },
+            "description": "Идентификаторы просмотренных объектов текущего пользователя."
+          }
+        },
+        {
+          "name": "GET /viewed",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/viewed?displayCurrency=USD",
+              "host": ["{{baseUrl}}"],
+              "path": ["viewed"],
+              "query": [
+                { "key": "displayCurrency", "value": "USD", "description": "USD | BYN | EUR" }
+              ]
+            },
+            "description": "История просмотров, отсортированная по viewedAt DESC. Проставляется автоматически при GET /estate/:id для авторизованных."
+          }
+        },
+        {
+          "name": "DELETE /viewed/:estateId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/viewed/12345",
+              "host": ["{{baseUrl}}"],
+              "path": ["viewed", "12345"]
+            },
+            "description": "Удалить один объект из истории."
+          }
+        },
+        {
+          "name": "DELETE /viewed (clear all)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/viewed",
+              "host": ["{{baseUrl}}"],
+              "path": ["viewed"]
+            },
+            "description": "Очистить всю историю просмотров текущего пользователя."
+          }
+        }
+      ]
+    },
+    {
       "name": "Search Subscriptions",
       "item": [
         {

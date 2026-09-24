@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpException, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -148,9 +148,13 @@ export class AuthController {
         ipAddress: req.ip ?? null,
       });
     } catch (err) {
-      // Битый/протухший refresh — чистим куку, чтобы фронтовый proxy
-      // не крутил бесконечный редирект-луп на защищённых страницах.
-      this.clearRefreshCookie(res);
+      // Протухший refresh чистим. «Не найден» — НЕ чистим: чаще всего его только что
+      // ротировал параллельный refresh (prefetch'и, пачка запросов после логина),
+      // и Set-Cookie с пустым значением стёр бы в браузере свежий токен победителя.
+      const code = err instanceof HttpException
+        ? (err.getResponse() as { code?: string })?.code
+        : undefined;
+      if (code === 'REFRESH_EXPIRED') this.clearRefreshCookie(res);
       throw err;
     }
 

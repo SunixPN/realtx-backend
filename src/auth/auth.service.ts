@@ -237,7 +237,7 @@ export class AuthService {
   // Rotation: удаляем старый токен, выдаём новую пару
   async refresh(oldRefreshToken: string, ctx: SessionContext = {}): Promise<AuthResult> {
     if (!oldRefreshToken) {
-      throw new UnauthorizedException('Refresh token отсутствует');
+      throw new UnauthorizedException({ code: 'REFRESH_MISSING', message: 'Refresh token отсутствует' });
     }
 
     const tokenHash = this.hashToken(oldRefreshToken);
@@ -248,13 +248,14 @@ export class AuthService {
     });
 
     if (!record) {
-      throw new UnauthorizedException('Недействительный refresh token');
+      // Не найден — в т.ч. если его только что ротировал параллельный запрос
+      throw new UnauthorizedException({ code: 'REFRESH_NOT_FOUND', message: 'Недействительный refresh token' });
     }
 
     if (record.expiresAt.getTime() < Date.now()) {
       // Истёкший токен удаляем — cron его всё равно бы убрал
       await this.refreshRepo.delete(record.id);
-      throw new UnauthorizedException('Refresh token истёк');
+      throw new UnauthorizedException({ code: 'REFRESH_EXPIRED', message: 'Refresh token истёк' });
     }
 
     // Rotation: удаляем старый токен и сразу выдаём новый

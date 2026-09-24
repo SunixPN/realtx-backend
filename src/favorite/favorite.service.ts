@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FavoriteEntity } from './entities/favorite.entity.js';
+import { CompareItemEntity } from '../compare/entities/compare-item.entity.js';
 import { EstateEntity } from '../estate/entities/estate.entity.js';
 import { GetFavoritesDto } from './dto/get-favorites.dto.js';
 import {
@@ -33,6 +34,7 @@ const PER_M2_COL: Record<'USD' | 'BYN' | 'EUR', 'pricePerM2Usd' | 'pricePerM2Byn
 type FavoriteItem = {
     id: number;
     favoritedAt: string;
+    isInCompare: boolean;
     price: number | null;
     pricePerM2: number | null;
     priceCurrency: number;
@@ -60,6 +62,8 @@ export class FavoriteService {
         private readonly favoriteRepo: Repository<FavoriteEntity>,
         @InjectRepository(EstateEntity)
         private readonly estateRepo: Repository<EstateEntity>,
+        @InjectRepository(CompareItemEntity)
+        private readonly compareRepo: Repository<CompareItemEntity>,
         private readonly currencyRates: CurrencyRatesService,
     ) {}
 
@@ -77,11 +81,18 @@ export class FavoriteService {
 
         const rates = await this.currencyRates.getLatest();
 
+        const compareRows = await this.compareRepo.find({
+            where: { userId },
+            select: { estateId: true },
+        });
+        const compareSet = new Set(compareRows.map(r => r.estateId));
+
         const items: FavoriteItem[] = favorites.map(f => {
             const e = f.estate;
             return {
                 id: e.id,
                 favoritedAt: f.createdAt.toISOString(),
+                isInCompare: compareSet.has(e.id),
                 price: e[priceCol] as number | null,
                 pricePerM2: e[perM2Col] as number | null,
                 priceCurrency: currencyCode,

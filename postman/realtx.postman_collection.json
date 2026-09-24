@@ -1049,6 +1049,119 @@
       ]
     },
     {
+      "name": "Compare",
+      "item": [
+        {
+          "name": "GET /compare/ids",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/compare/ids",
+              "host": ["{{baseUrl}}"],
+              "path": ["compare", "ids"]
+            }
+          }
+        },
+        {
+          "name": "GET /compare",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/compare?displayCurrency=USD",
+              "host": ["{{baseUrl}}"],
+              "path": ["compare"],
+              "query": [
+                { "key": "displayCurrency", "value": "USD", "description": "USD | BYN | EUR" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /compare/:estateId",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/compare/12345",
+              "host": ["{{baseUrl}}"],
+              "path": ["compare", "12345"]
+            },
+            "description": "409 ALREADY_IN_COMPARE / 422 COMPARE_LIMIT_REACHED"
+          }
+        },
+        {
+          "name": "DELETE /compare/:estateId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/compare/12345",
+              "host": ["{{baseUrl}}"],
+              "path": ["compare", "12345"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /compare (clear all)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/compare",
+              "host": ["{{baseUrl}}"],
+              "path": ["compare"]
+            }
+          }
+        },
+        {
+          "name": "GET /compare/preferences",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/compare/preferences",
+              "host": ["{{baseUrl}}"],
+              "path": ["compare", "preferences"]
+            }
+          }
+        },
+        {
+          "name": "PUT /compare/preferences",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hiddenRows\": [\"price_byn\", \"days_on_market\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/compare/preferences",
+              "host": ["{{baseUrl}}"],
+              "path": ["compare", "preferences"]
+            },
+            "description": "Список labelKey строк, скрытых пользователем. Пустой массив = все включены."
+          }
+        }
+      ]
+    },
+    {
       "name": "Viewed history",
       "item": [
         {

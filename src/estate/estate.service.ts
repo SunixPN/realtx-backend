@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { EstateEntity } from "./entities/estate.entity.js";
 import { FavoriteEntity } from '../favorite/entities/favorite.entity.js';
+import { CompareItemEntity } from '../compare/entities/compare-item.entity.js';
 import { ViewedEntity } from '../viewed/entities/viewed.entity.js';
 import { EstateFilterBaseDto } from "./dto/estate-filter-base.dto.js";
 import { FilterEstatesDto } from "./dto/filter-estates.dto.js";
@@ -57,6 +58,8 @@ export class EstateService {
         private readonly estateRepo: Repository<EstateEntity>,
         @InjectRepository(FavoriteEntity)
         private readonly favoriteRepo: Repository<FavoriteEntity>,
+        @InjectRepository(CompareItemEntity)
+        private readonly compareRepo: Repository<CompareItemEntity>,
         @InjectRepository(ViewedEntity)
         private readonly viewedRepo: Repository<ViewedEntity>,
         private readonly currencyRates: CurrencyRatesService,
@@ -71,6 +74,12 @@ export class EstateService {
     private async buildViewedSet(userId: string | undefined, estateIds: number[]): Promise<Set<number>> {
         if (!userId || estateIds.length === 0) return new Set();
         const rows = await this.viewedRepo.findBy({ userId, estateId: In(estateIds) });
+        return new Set(rows.map(r => r.estateId));
+    }
+
+    private async buildCompareSet(userId: string | undefined, estateIds: number[]): Promise<Set<number>> {
+        if (!userId || estateIds.length === 0) return new Set();
+        const rows = await this.compareRepo.findBy({ userId, estateId: In(estateIds) });
         return new Set(rows.map(r => r.estateId));
     }
 
@@ -225,8 +234,9 @@ export class EstateService {
         const [items, total] = await qb.getManyAndCount();
         const projected = this.projectByCurrency(items, currency);
         const ids = items.map(e => e.id);
-        const [favSet, viewedSet] = await Promise.all([
+        const [favSet, compareSet, viewedSet] = await Promise.all([
             this.buildFavoriteSet(userId, ids),
+            this.buildCompareSet(userId, ids),
             this.buildViewedSet(userId, ids),
         ]);
         return {
@@ -234,6 +244,7 @@ export class EstateService {
             estates: projected.map(e => ({
                 ...e,
                 isFavorite: favSet.has(e.id),
+                isInCompare: compareSet.has(e.id),
                 isViewed: viewedSet.has(e.id),
             })),
         };
@@ -327,17 +338,18 @@ export class EstateService {
         const base = this.projectByCurrency([entity], currency)[0];
         const priceHistory = this.buildPriceHistoryPoints(entity, rates);
         const priceChange = this.buildPriceChange(priceHistory, entity.priceHistory.length);
-        const [isFavorite, isViewed] = userId
+        const [isFavorite, isInCompare, isViewed] = userId
             ? await Promise.all([
                 this.favoriteRepo.existsBy({ userId, estateId: id }),
+                this.compareRepo.existsBy({ userId, estateId: id }),
                 this.viewedRepo.existsBy({ userId, estateId: id }),
             ])
-            : [false, false];
+            : [false, false, false];
         // Просмотр не логируем здесь: RSC-префетч в Next.js дёргает GET
         // /estate/:id при рендере /viewed и двигал бы viewedAt на now(),
         // из-за чего порядок истории «прыгал» между рефрешами. Логирование
         // выполняет клиент явно через POST /viewed/:estateId на маунте деталки.
-        return { ...base, priceHistory, priceChange, isFavorite, isViewed };
+        return { ...base, priceHistory, priceChange, isFavorite, isInCompare, isViewed };
     }
 
     /**
@@ -367,8 +379,9 @@ export class EstateService {
             .addOrderBy('e.areaTotal', 'ASC')
             .getMany();
         const ids = items.map(e => e.id);
-        const [favSet, viewedSet] = await Promise.all([
+        const [favSet, compareSet, viewedSet] = await Promise.all([
             this.buildFavoriteSet(userId, ids),
+            this.buildCompareSet(userId, ids),
             this.buildViewedSet(userId, ids),
         ]);
         return {
@@ -389,6 +402,7 @@ export class EstateService {
                 photo: e.photos?.[0] ?? null,
                 sellerType: e.sellerType,
                 isFavorite: favSet.has(e.id),
+                isInCompare: compareSet.has(e.id),
                 isViewed: viewedSet.has(e.id),
             })),
         };

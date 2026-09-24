@@ -8,6 +8,9 @@ import { EmailVerificationTokenEntity } from './auth/entities/email-verification
 import { PasswordResetTokenEntity } from './auth/entities/password-reset.entity.js';
 import { CurrencyRateEntity } from './currency/entities/currency-rate.entity.js';
 import { FavoriteEntity } from './favorite/entities/favorite.entity.js';
+import { CompareItemEntity } from './compare/entities/compare-item.entity.js';
+import { ComparePreferenceEntity } from './compare/entities/compare-preference.entity.js';
+import { ViewedEntity } from './viewed/entities/viewed.entity.js';
 import { SearchSubscriptionEntity } from './search-subscription/entities/search-subscription.entity.js';
 import { AppSettingEntity } from './settings/entities/app-setting.entity.js';
 
@@ -30,6 +33,9 @@ export const AppDataSource = new DataSource({
     PasswordResetTokenEntity,
     CurrencyRateEntity,
     FavoriteEntity,
+    CompareItemEntity,
+    ComparePreferenceEntity,
+    ViewedEntity,
     SearchSubscriptionEntity,
     AppSettingEntity,
   ],

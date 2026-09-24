@@ -15,6 +15,9 @@ import { CurrencyModule } from './currency/currency.module.js';
 import { CurrencyRateEntity } from './currency/entities/currency-rate.entity.js';
 import { FavoriteModule } from './favorite/favorite.module.js';
 import { FavoriteEntity } from './favorite/entities/favorite.entity.js';
+import { CompareModule } from './compare/compare.module.js';
+import { CompareItemEntity } from './compare/entities/compare-item.entity.js';
+import { ComparePreferenceEntity } from './compare/entities/compare-preference.entity.js';
 import { ViewedModule } from './viewed/viewed.module.js';
 import { ViewedEntity } from './viewed/entities/viewed.entity.js';
 import { SearchSubscriptionModule } from './search-subscription/search-subscription.module.js';
@@ -35,7 +38,7 @@ import { AdminPanelModule } from './admin/admin.module.js';
         username: config.get('DB_USER'),
         password: config.get('DB_PASSWORD'),
         database: config.get('DB_NAME'),
-        entities: [EstateEntity, UserEntity, RefreshTokenEntity, EmailVerificationTokenEntity, PasswordResetTokenEntity, CurrencyRateEntity, FavoriteEntity, ViewedEntity, SearchSubscriptionEntity, AppSettingEntity],
+        entities: [EstateEntity, UserEntity, RefreshTokenEntity, EmailVerificationTokenEntity, PasswordResetTokenEntity, CurrencyRateEntity, FavoriteEntity, CompareItemEntity, ComparePreferenceEntity, ViewedEntity, SearchSubscriptionEntity, AppSettingEntity],
         migrations: ['dist/migrations/*.js'],
         synchronize: config.get('DB_SYNC') === 'true',
         migrationsRun: config.get('DB_MIGRATIONS_RUN') !== 'false',
@@ -50,6 +53,7 @@ import { AdminPanelModule } from './admin/admin.module.js';
     UserModule,
     AuthModule,
     FavoriteModule,
+    CompareModule,
     ViewedModule,
     SearchSubscriptionModule,
     AdminPanelModule,

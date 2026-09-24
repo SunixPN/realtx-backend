@@ -1081,7 +1081,22 @@
                 { "key": "displayCurrency", "value": "USD", "description": "USD | BYN | EUR" }
               ]
             },
-            "description": "История просмотров, отсортированная по viewedAt DESC. Проставляется автоматически при GET /estate/:id для авторизованных."
+            "description": "История просмотров, отсортированная по viewedAt DESC. Запись факта просмотра выполняется явно клиентом через POST /viewed/:estateId."
+          }
+        },
+        {
+          "name": "POST /viewed/:estateId",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/viewed/12345",
+              "host": ["{{baseUrl}}"],
+              "path": ["viewed", "12345"]
+            },
+            "description": "Зафиксировать факт просмотра объявления (upsert по (userId, estateId), viewedAt=now()). Возвращает 204."
           }
         },
         {

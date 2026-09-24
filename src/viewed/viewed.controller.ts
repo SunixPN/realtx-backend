@@ -6,6 +6,7 @@ import {
     HttpStatus,
     Param,
     ParseIntPipe,
+    Post,
     Query,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
@@ -24,6 +25,18 @@ export class ViewedController {
     @Get('ids')
     getViewedIds(@CurrentUser() user: { id: string }) {
         return this.viewedService.getViewedIds(user.id);
+    }
+
+    // Явная запись факта просмотра. Клиент дёргает на маунте деталки, а не
+    // сервер при GET /estate/:id — иначе Next.js RSC-префетч со страницы
+    // /viewed сдвигал бы viewedAt и порядок истории «прыгал» на рефреше.
+    @Post(':estateId')
+    @HttpCode(HttpStatus.NO_CONTENT)
+    logView(
+        @CurrentUser() user: { id: string },
+        @Param('estateId', ParseIntPipe) estateId: number,
+    ) {
+        return this.viewedService.logView(user.id, estateId);
     }
 
     // DELETE / — очистка всей истории. Держим ДО ':estateId', чтобы роутер

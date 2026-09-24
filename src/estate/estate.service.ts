@@ -7,7 +7,6 @@ import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { EstateEntity } from "./entities/estate.entity.js";
 import { FavoriteEntity } from '../favorite/entities/favorite.entity.js';
 import { ViewedEntity } from '../viewed/entities/viewed.entity.js';
-import { ViewedService } from '../viewed/viewed.service.js';
 import { EstateFilterBaseDto } from "./dto/estate-filter-base.dto.js";
 import { FilterEstatesDto } from "./dto/filter-estates.dto.js";
 import { MapPointFilterDto } from "./dto/map-point-filter.dto.js";
@@ -61,7 +60,6 @@ export class EstateService {
         @InjectRepository(ViewedEntity)
         private readonly viewedRepo: Repository<ViewedEntity>,
         private readonly currencyRates: CurrencyRatesService,
-        private readonly viewedService: ViewedService,
     ) {}
 
     private async buildFavoriteSet(userId: string | undefined, estateIds: number[]): Promise<Set<number>> {
@@ -335,11 +333,10 @@ export class EstateService {
                 this.viewedRepo.existsBy({ userId, estateId: id }),
             ])
             : [false, false];
-        // Логируем факт просмотра. Fire-and-forget: клиенту неважно, а промашка
-        // логгера не должна ломать выдачу карточки. Только для авторизованных.
-        if (userId) {
-            this.viewedService.logView(userId, id).catch(() => {});
-        }
+        // Просмотр не логируем здесь: RSC-префетч в Next.js дёргает GET
+        // /estate/:id при рендере /viewed и двигал бы viewedAt на now(),
+        // из-за чего порядок истории «прыгал» между рефрешами. Логирование
+        // выполняет клиент явно через POST /viewed/:estateId на маунте деталки.
         return { ...base, priceHistory, priceChange, isFavorite, isViewed };
     }
 

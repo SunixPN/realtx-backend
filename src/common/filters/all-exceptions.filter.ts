@@ -19,6 +19,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const status = this.resolveStatus(exception);
     const message = this.resolveMessage(exception);
+    const extras = this.resolveExtras(exception);
 
     // Стек только для непойманных 500-х — валидация/404 не спамят логи
     if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
@@ -33,6 +34,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error: {
         statusCode: status,
         message: Array.isArray(message) ? message : [message],
+        ...extras,
         timestamp: new Date().toISOString(),
         path: request.url,
       },
@@ -42,6 +44,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private resolveStatus(exception: unknown): number {
     if (exception instanceof HttpException) return exception.getStatus();
     return HttpStatus.INTERNAL_SERVER_ERROR;
+  }
+
+  // Машиночитаемые поля ошибки (code, retryAfter, limit), если сервис их передал
+  private resolveExtras(exception: unknown): Record<string, unknown> {
+    if (!(exception instanceof HttpException)) return {};
+    const response = exception.getResponse();
+    if (typeof response !== 'object' || response === null) return {};
+    const extras: Record<string, unknown> = {};
+    for (const key of ['code', 'retryAfter', 'limit'] as const) {
+      const value = (response as Record<string, unknown>)[key];
+      if (value !== undefined) extras[key] = value;
+    }
+    return extras;
   }
 
   private resolveMessage(exception: unknown): string | string[] {

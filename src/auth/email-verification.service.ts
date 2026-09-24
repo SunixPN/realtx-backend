@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
@@ -13,6 +15,8 @@ import { UserEntity } from '../user/entities/user.entity.js';
 import { MailService } from '../mail/mail.service.js';
 import { EmailVerificationTokenEntity } from './entities/email-verification.entity.js';
 import { SettingsService } from '../settings/settings.service.js';
+
+export const RESEND_COOLDOWN_SECONDS = 60;
 
 @Injectable()
 export class EmailVerificationService {
@@ -32,6 +36,31 @@ export class EmailVerificationService {
 
   private get ttlMinutes(): number {
     return this.settings.getNumber('auth.emailVerificationTtlMinutes');
+  }
+
+  // Не даём слать письма чаще раза в RESEND_COOLDOWN_SECONDS — защита от спама.
+  // Вызывается до любых изменений, чтобы при 429 ничего не успело сохраниться.
+  async assertResendAllowed(userId: string): Promise<void> {
+    // Считаем интервал в БД: createdAt — timestamp без таймзоны, и при сравнении
+    // с Date.now() в Node возникает сдвиг на смещение пояса сервера.
+    const row = await this.tokenRepo
+      .createQueryBuilder('t')
+      .select('EXTRACT(EPOCH FROM (LOCALTIMESTAMP - MAX(t.createdAt)))', 'elapsed')
+      .where('t.userId = :userId', { userId })
+      .getRawOne<{ elapsed: string | null }>();
+    if (row?.elapsed == null) return;
+    const elapsed = Number(row.elapsed);
+    if (elapsed < RESEND_COOLDOWN_SECONDS) {
+      const retryAfter = Math.ceil(RESEND_COOLDOWN_SECONDS - elapsed);
+      throw new HttpException(
+        {
+          code: 'EMAIL_RESEND_COOLDOWN',
+          message: `Письмо уже отправлено. Повторить можно через ${retryAfter} сек.`,
+          retryAfter,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
   }
 
   // Отправить письмо с подтверждением. Удаляет предыдущие токены юзера.

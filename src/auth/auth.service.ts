@@ -14,6 +14,7 @@ import { UserEntity } from '../user/entities/user.entity.js';
 import { RefreshTokenEntity } from './entities/refresh.entity.js';
 import { RegisterDto } from './dto/register-dto.js';
 import { LoginDto } from './dto/login-dto.js';
+import { UpdateProfileDto } from './dto/update-profile-dto.js';
 import { EmailVerificationService } from './email-verification.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 
@@ -134,16 +135,82 @@ export class AuthService {
   async confirmPhone(userId: string, phone: string): Promise<UserEntity> {
     const owner = await this.userRepo.findOne({ where: { phone } });
     if (owner && owner.id !== userId) {
-      throw new ConflictException('Этот номер уже привязан к другому аккаунту');
+      throw new ConflictException({
+        code: 'PHONE_TAKEN',
+        message: 'Этот номер уже привязан к другому аккаунту',
+      });
     }
 
     await this.userRepo.update(userId, { phone, phoneVerified: true });
 
-    const updated = await this.userRepo.findOne({ where: { id: userId } });
-    if (!updated) {
+    return this.getUserOrFail(userId);
+  }
+
+  // Редактирование личных данных и настроек уведомлений из профиля
+  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<UserEntity> {
+    const patch: Partial<UserEntity> = {};
+    if (dto.name !== undefined) patch.name = dto.name;
+    if (dto.city !== undefined) patch.city = dto.city;
+    if (dto.notifyByEmail !== undefined) patch.notifyByEmail = dto.notifyByEmail;
+
+    if (Object.keys(patch).length > 0) {
+      await this.userRepo.update(userId, patch);
+    }
+    return this.getUserOrFail(userId);
+  }
+
+  /**
+   * Добавление email (или замена ещё не подтверждённого) и отправка письма.
+   * Подтверждённый email из профиля не меняется — это отдельный флоу.
+   */
+  async addEmail(userId: string, email: string): Promise<UserEntity> {
+    const user = await this.getUserOrFail(userId);
+
+    if (user.email && user.emailVerified) {
+      throw new ConflictException({
+        code: 'EMAIL_ALREADY_VERIFIED',
+        message: 'Email уже подтверждён',
+      });
+    }
+
+    const owner = await this.userRepo.findOne({ where: { email } });
+    if (owner && owner.id !== userId) {
+      throw new ConflictException({
+        code: 'EMAIL_TAKEN',
+        message: 'Этот email уже привязан к другому аккаунту',
+      });
+    }
+
+    // Проверяем лимит до сохранения — иначе email сменится, а письмо не уйдёт
+    await this.emailVerificationService.assertResendAllowed(userId);
+
+    if (user.email !== email) {
+      try {
+        await this.userRepo.update(userId, { email, emailVerified: false });
+      } catch (err) {
+        // Гонка: email успели занять между проверкой и записью
+        if ((err as { code?: string }).code === '23505') {
+          throw new ConflictException({
+            code: 'EMAIL_TAKEN',
+            message: 'Этот email уже привязан к другому аккаунту',
+          });
+        }
+        throw err;
+      }
+      user.email = email;
+      user.emailVerified = false;
+    }
+
+    await this.emailVerificationService.sendVerificationEmail(user);
+    return user;
+  }
+
+  private async getUserOrFail(userId: string): Promise<UserEntity> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
       throw new NotFoundException('Пользователь не найден');
     }
-    return updated;
+    return user;
   }
 
   async login(dto: LoginDto, ctx: SessionContext = {}): Promise<AuthResult> {

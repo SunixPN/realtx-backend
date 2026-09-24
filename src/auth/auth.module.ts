@@ -6,6 +6,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from '../user/entities/user.entity.js';
 import { FavoriteEntity } from '../favorite/entities/favorite.entity.js';
 import { SearchSubscriptionEntity } from '../search-subscription/entities/search-subscription.entity.js';
+import { CompareItemEntity } from '../compare/entities/compare-item.entity.js';
+import { ViewedEntity } from '../viewed/entities/viewed.entity.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { EmailVerificationService } from './email-verification.service.js';
@@ -27,6 +29,8 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
       PasswordResetTokenEntity,
       FavoriteEntity,
       SearchSubscriptionEntity,
+      CompareItemEntity,
+      ViewedEntity,
     ]),
     PassportModule,
     JwtModule.register({}),

@@ -1,11 +1,15 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FavoriteEntity } from '../favorite/entities/favorite.entity.js';
 import { SearchSubscriptionEntity } from '../search-subscription/entities/search-subscription.entity.js';
+import { CompareItemEntity } from '../compare/entities/compare-item.entity.js';
+import { ViewedEntity } from '../viewed/entities/viewed.entity.js';
 import { AuthService } from './auth.service.js';
+import { UpdateProfileDto } from './dto/update-profile-dto.js';
+import { AddEmailDto } from './dto/add-email-dto.js';
 import { EmailVerificationService } from './email-verification.service.js';
 import { PasswordResetService } from './password-reset.service.js';
 import { FirebaseAdminService } from './firebase-admin.service.js';
@@ -35,6 +39,10 @@ export class AuthController {
     private readonly favoriteRepo: Repository<FavoriteEntity>,
     @InjectRepository(SearchSubscriptionEntity)
     private readonly subscriptionRepo: Repository<SearchSubscriptionEntity>,
+    @InjectRepository(CompareItemEntity)
+    private readonly compareRepo: Repository<CompareItemEntity>,
+    @InjectRepository(ViewedEntity)
+    private readonly viewedRepo: Repository<ViewedEntity>,
   ) {}
 
   @Public()
@@ -79,22 +87,29 @@ export class AuthController {
   }
 
   @Get('me')
-  async me(@CurrentUser() user: UserEntity) {
-    const { passwordHash: _p, refreshTokens: _r, ...safeUser } = user;
-    const [favoritesCount, freshRow] = await Promise.all([
-      this.favoriteRepo.count({ where: { userId: user.id } }),
-      this.subscriptionRepo
-        .createQueryBuilder('s')
-        .select('COALESCE(SUM(s.fresh), 0)', 'sum')
-        .where('s.userId = :userId', { userId: user.id })
-        .andWhere('s.paused = false')
-        .getRawOne<{ sum: string }>(),
-    ]);
-    return {
-      ...safeUser,
-      favoritesCount,
-      subscriptionsFreshCount: Number(freshRow?.sum ?? 0),
-    };
+  me(@CurrentUser() user: UserEntity) {
+    return this.buildMe(user);
+  }
+
+  // Редактирование профиля: имя, город, email-уведомления
+  @Patch('me')
+  async updateMe(
+    @CurrentUser() user: UserEntity,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    const updated = await this.authService.updateProfile(user.id, dto);
+    return this.buildMe(updated);
+  }
+
+  // Добавление email (или замена неподтверждённого) — сразу шлём письмо
+  @Post('email')
+  @HttpCode(HttpStatus.OK)
+  async addEmail(
+    @CurrentUser() user: UserEntity,
+    @Body() dto: AddEmailDto,
+  ) {
+    const updated = await this.authService.addEmail(user.id, dto.email);
+    return this.buildMe(updated);
   }
 
   // --- Верификация email ---
@@ -103,6 +118,7 @@ export class AuthController {
   @Post('verify-email/resend')
   @HttpCode(HttpStatus.ACCEPTED)
   async resendVerificationEmail(@CurrentUser() user: UserEntity) {
+    await this.emailVerificationService.assertResendAllowed(user.id);
     await this.emailVerificationService.sendVerificationEmail(user);
     return { message: 'Письмо отправлено' };
   }
@@ -234,8 +250,7 @@ export class AuthController {
   ) {
     const { phone } = await this.firebaseAdmin.verifyPhoneToken(dto.idToken);
     const updated = await this.authService.confirmPhone(user.id, phone);
-    const { passwordHash: _p, refreshTokens: _r, ...safeUser } = updated;
-    return safeUser;
+    return this.buildMe(updated);
   }
 
   // --- Вход через Google (Firebase Google Sign-In) ---
@@ -294,6 +309,32 @@ export class AuthController {
   async confirmPasswordReset(@Body() dto: ConfirmPasswordResetDto) {
     await this.passwordResetService.confirmReset(dto.token, dto.password);
     return { message: 'Пароль обновлён' };
+  }
+
+  // Юзер без секретов + счётчики активности для шапки и профиля
+  private async buildMe(user: UserEntity) {
+    const { passwordHash: _p, refreshTokens: _r, ...safeUser } = user;
+    const [favoritesCount, subscriptionsCount, compareCount, viewedCount, freshRow] = await Promise.all([
+      this.favoriteRepo.count({ where: { userId: user.id } }),
+      this.subscriptionRepo.count({ where: { userId: user.id } }),
+      this.compareRepo.count({ where: { userId: user.id } }),
+      // Старше viewed.retentionDays вычищает cron — значит это «за последние N дней»
+      this.viewedRepo.count({ where: { userId: user.id } }),
+      this.subscriptionRepo
+        .createQueryBuilder('s')
+        .select('COALESCE(SUM(s.fresh), 0)', 'sum')
+        .where('s.userId = :userId', { userId: user.id })
+        .andWhere('s.paused = false')
+        .getRawOne<{ sum: string }>(),
+    ]);
+    return {
+      ...safeUser,
+      favoritesCount,
+      subscriptionsCount,
+      compareCount,
+      viewedCount,
+      subscriptionsFreshCount: Number(freshRow?.sum ?? 0),
+    };
   }
 
   private setRefreshCookie(res: Response, token: string): void {

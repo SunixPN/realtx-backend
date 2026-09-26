@@ -19,6 +19,8 @@ import { EmailVerificationService } from './email-verification.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 
 const BCRYPT_ROUNDS = 12;
+const ROTATION_GRACE_MS = 30_000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface AuthResult {
   accessToken: string;
@@ -255,11 +257,25 @@ export class AuthService {
     if (record.expiresAt.getTime() < Date.now()) {
       // Истёкший токен удаляем — cron его всё равно бы убрал
       await this.refreshRepo.delete(record.id);
+      // Ротированный токен (срок урезан окном допуска) — запоздавший параллельный запрос:
+      // у клиента уже новая кука, стирать её нельзя. Отличаем по сроку жизни записи
+      // (с запасом в сутки — createdAt хранится без таймзоны).
+      const lifetimeMs = record.expiresAt.getTime() - record.createdAt.getTime();
+      const fullTtlMs = this.settings.getNumber('jwt.refreshTtlDays') * DAY_MS;
+      if (lifetimeMs < fullTtlMs - DAY_MS) {
+        throw new UnauthorizedException({ code: 'REFRESH_ROTATED', message: 'Недействительный refresh token' });
+      }
       throw new UnauthorizedException({ code: 'REFRESH_EXPIRED', message: 'Refresh token истёк' });
     }
 
-    // Rotation: удаляем старый токен и сразу выдаём новый
-    await this.refreshRepo.delete(record.id);
+    // Rotation с окном допуска: старый токен не удаляем сразу, а оставляем жить
+    // ROTATION_GRACE_MS. Параллельные запросы с тем же токеном (proxy + клиент,
+    // несколько вкладок) иначе получают 401 и выкидывают юзера из сессии.
+    // Min — чтобы повторное использование в окне не продлевало старый токен.
+    const graceUntil = Date.now() + ROTATION_GRACE_MS;
+    if (record.expiresAt.getTime() > graceUntil) {
+      await this.refreshRepo.update(record.id, { expiresAt: new Date(graceUntil) });
+    }
 
     return this.issueTokens(record.user, ctx);
   }

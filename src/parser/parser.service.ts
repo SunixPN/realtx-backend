@@ -110,7 +110,8 @@ export class ParserService {
       storey: r.storey ?? null,
       storeys: r.storeys ?? null,
       buildingYear: r.buildingYear ?? null,
-      wallMaterial: r.wallMaterial ?? null,
+      // У realt.by wallMaterial всегда null — тип дома приходит в houseType
+      wallMaterial: r.houseType ?? null,
       repairState: r.repairState ?? null,
       address: r.address ?? null,
       townName: r.townName ?? null,

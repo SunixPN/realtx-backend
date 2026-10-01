@@ -133,7 +133,9 @@ export class ParserService {
   }
 
   private async markInactive(): Promise<void> {
-    const cutoff = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    // Вызывается только после полного прогона (каждые ~2 ч), поэтому всё,
+    // что не обновлялось 6 ч, уже точно пропало с realt.by.
+    const cutoff = new Date(Date.now() - 6 * 60 * 60 * 1000);
 
     await this.estateRepo
       .createQueryBuilder()

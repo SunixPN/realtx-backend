@@ -632,6 +632,10 @@ export class EstateService {
                     pricePerM2Usd: this.currencyRates.convert(pricePerM2, from, CURRENCY_USD, rates),
                     pricePerM2Byn: this.currencyRates.convert(pricePerM2, from, CURRENCY_BYN, rates),
                     pricePerM2Eur: this.currencyRates.convert(pricePerM2, from, CURRENCY_EUR, rates),
+                    // Не трогаем updatedAt: по нему ParserService.markInactive
+                    // определяет, что объявление пропало из выдачи realt.by.
+                    // Иначе ежедневный пересчёт «оживляет» снятые объявления.
+                    updatedAt: () => '"updatedAt"',
                 });
             }));
 

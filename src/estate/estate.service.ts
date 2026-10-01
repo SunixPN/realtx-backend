@@ -68,7 +68,7 @@ export class EstateService {
     private async buildFavoriteSet(userId: string | undefined, estateIds: number[]): Promise<Set<number>> {
         if (!userId || estateIds.length === 0) return new Set();
         const rows = await this.favoriteRepo.findBy({ userId, estateId: In(estateIds) });
-        return new Set(rows.map(r => r.estateId));
+        return new Set(rows.map(r => r.estateId))
     }
 
     private async buildViewedSet(userId: string | undefined, estateIds: number[]): Promise<Set<number>> {
